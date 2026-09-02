@@ -704,12 +704,11 @@ private:
     // Private helpers implemented in conversationmodel.cpp
     void initConversationsImpl();
     int indexOf(const QString& uid) const;
-    std::reference_wrapper<conversation::Info> getConversation(
-        const FilterPredicate& pred, bool searchResultIncluded = false) const;
-    std::reference_wrapper<conversation::Info> convForUid(
-        const QString& uid, bool searchResultIncluded = false) const;
-    std::reference_wrapper<conversation::Info> convForPeerUri(
-        const QString& uri, bool searchResultIncluded = false) const;
+    std::reference_wrapper<conversation::Info> getConversation(const FilterPredicate& pred,
+                                                               bool searchResultIncluded = false) const;
+    std::reference_wrapper<conversation::Info> convForUid(const QString& uid, bool searchResultIncluded = false) const;
+    std::reference_wrapper<conversation::Info> convForPeerUri(const QString& uri,
+                                                              bool searchResultIncluded = false) const;
     std::vector<int> getIndicesForContact(const QString& uri) const;
     bool filterConversation(const conversation::Info& conv);
     bool sortConversation(const conversation::Info& convA, const conversation::Info& convB);

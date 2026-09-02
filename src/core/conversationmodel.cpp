@@ -56,7 +56,6 @@ namespace lrc {
 using namespace authority;
 using namespace api;
 
-
 ConversationModel::ConversationModel(const account::Info& owner,
                                      Lrc& lrc,
                                      Database& db,
@@ -72,23 +71,14 @@ ConversationModel::ConversationModel(const account::Info& owner,
     initConversationsImpl();
 
     // Contact related
-    connect(&*owner.contactModel,
-            &ContactModel::contactUpdated,
-            this,
-            &ConversationModel::slotContactUpdated);
-    connect(&*owner.contactModel,
-            &ContactModel::profileUpdated,
-            this,
-            &ConversationModel::slotContactUpdated);
+    connect(&*owner.contactModel, &ContactModel::contactUpdated, this, &ConversationModel::slotContactUpdated);
+    connect(&*owner.contactModel, &ContactModel::profileUpdated, this, &ConversationModel::slotContactUpdated);
     connect(&*owner.contactModel, &ContactModel::contactAdded, this, &ConversationModel::slotContactAdded);
     connect(&*owner.contactModel,
             &ContactModel::pendingContactAccepted,
             this,
             &ConversationModel::slotPendingContactAccepted);
-    connect(&*owner.contactModel,
-            &ContactModel::contactRemoved,
-            this,
-            &ConversationModel::slotContactRemoved);
+    connect(&*owner.contactModel, &ContactModel::contactRemoved, this, &ConversationModel::slotContactRemoved);
 
     // Messages related
     connect(&*owner.contactModel,
@@ -106,10 +96,7 @@ ConversationModel::ConversationModel(const account::Info& owner,
 
     // Call related
     connect(&*owner.contactModel, &ContactModel::newCall, this, &ConversationModel::slotNewCall);
-    connect(&*owner.callModel,
-            &lrc::api::CallModel::callStatusChanged,
-            this,
-            &ConversationModel::slotCallStatusChanged);
+    connect(&*owner.callModel, &lrc::api::CallModel::callStatusChanged, this, &ConversationModel::slotCallStatusChanged);
     connect(&*owner.callModel, &lrc::api::CallModel::callStarted, this, &ConversationModel::slotCallStarted);
     connect(&*owner.callModel, &lrc::api::CallModel::callEnded, this, &ConversationModel::slotCallEnded);
     connect(&*owner.callModel,
@@ -182,10 +169,7 @@ ConversationModel::ConversationModel(const account::Info& owner,
             &CallbacksHandler::conversationRequestDeclined,
             this,
             &ConversationModel::slotConversationRemoved);
-    connect(&callbacksHandler,
-            &CallbacksHandler::conversationReady,
-            this,
-            &ConversationModel::slotConversationReady);
+    connect(&callbacksHandler, &CallbacksHandler::conversationReady, this, &ConversationModel::slotConversationReady);
     connect(&callbacksHandler,
             &CallbacksHandler::conversationRemoved,
             this,
@@ -194,18 +178,12 @@ ConversationModel::ConversationModel(const account::Info& owner,
             &CallbacksHandler::conversationMemberEvent,
             this,
             &ConversationModel::slotConversationMemberEvent);
-    connect(&callbacksHandler,
-            &CallbacksHandler::conversationError,
-            this,
-            &ConversationModel::slotOnConversationError);
+    connect(&callbacksHandler, &CallbacksHandler::conversationError, this, &ConversationModel::slotOnConversationError);
     connect(&callbacksHandler,
             &CallbacksHandler::conversationPreferencesUpdated,
             this,
             &ConversationModel::slotConversationPreferencesUpdated);
-    connect(&callbacksHandler,
-            &CallbacksHandler::activeCallsChanged,
-            this,
-            &ConversationModel::slotActiveCallsChanged);
+    connect(&callbacksHandler, &CallbacksHandler::activeCallsChanged, this, &ConversationModel::slotActiveCallsChanged);
 }
 
 void
@@ -227,8 +205,7 @@ ConversationModel::rowCount(const QModelIndex& parent) const
 QVariant
 ConversationModel::data(const QModelIndex& index, int role) const
 {
-    if (!index.isValid() || index.row() < 0
-        || index.row() >= static_cast<int>(d_->conversations.size()))
+    if (!index.isValid() || index.row() < 0 || index.row() >= static_cast<int>(d_->conversations.size()))
         return {};
     return dataForItem(d_->conversations.at(index.row()), role);
 }
@@ -293,8 +270,7 @@ ConversationModel::dataForItem(const conversation::Info& item, int role) const
         if (!item.callId.isEmpty() && owner.callModel->hasCall(item.callId)) {
             const auto& call = owner.callModel->getCall(item.callId);
             return ((!call.isOutgoing
-                     && (call.status == call::Status::IN_PROGRESS
-                         || call.status == call::Status::PAUSED
+                     && (call.status == call::Status::IN_PROGRESS || call.status == call::Status::PAUSED
                          || call.status == call::Status::INCOMING_RINGING))
                     || (call.isOutgoing && call.status != call::Status::ENDED));
         }
@@ -325,9 +301,7 @@ ConversationModel::dataForItem(const conversation::Info& item, int role) const
     case Role::LastInteractionTimeStamp: {
         qint32 ts = 0;
         item.interactions->withLast(
-            [&ts](const QString&, const interaction::Info& interaction) {
-                ts = interaction.timestamp;
-            });
+            [&ts](const QString&, const interaction::Info& interaction) { ts = interaction.timestamp; });
         return ts;
     }
     case Role::LastInteraction: {
@@ -347,9 +321,8 @@ ConversationModel::dataForItem(const conversation::Info& item, int role) const
                 auto bestName = interaction.authorUri == owner.profileInfo.uri
                                     ? owner.accountModel->bestNameForAccount(owner.id)
                                     : owner.contactModel->bestNameForContact(interaction.authorUri);
-                body = interaction::getContactInteractionString(
-                    bestName,
-                    interaction::to_action(interaction.commit["action"]));
+                body = interaction::getContactInteractionString(bestName,
+                                                                interaction::to_action(interaction.commit["action"]));
             } else {
                 body = interaction.body.isEmpty() ? tr("(deleted message)") : interaction.body;
             }
@@ -730,8 +703,8 @@ ConversationModel::getConversationForCallId(const QString& callId) const
     try {
         return std::make_optional(
             getConversation([callId](const conversation::Info& conv)
-                                        -> bool { return (callId == conv.callId || callId == conv.confId); },
-                                    true));
+                                -> bool { return (callId == conv.callId || callId == conv.confId); },
+                            true));
     } catch (const std::out_of_range&) {
         return std::nullopt;
     }
@@ -1055,7 +1028,10 @@ ConversationModel::reloadHistory()
     std::for_each(d_->conversations.begin(), d_->conversations.end(), [&](const conversation::Info& c) {
         c.interactions->reloadHistory();
         Q_EMIT conversationUpdated(c.uid);
-        { const auto _idx = index(indexOf(c.uid)); Q_EMIT dataChanged(_idx, _idx); }
+        {
+            const auto _idx = index(indexOf(c.uid));
+            Q_EMIT dataChanged(_idx, _idx);
+        }
     });
 }
 
@@ -1243,7 +1219,10 @@ ConversationModel::sendMessage(const QString& uid, const QString& body, const QS
             // The order has changed, informs the client to redraw the list
             invalidateModel();
             Q_EMIT modelChanged();
-            { const auto _idx = index(indexOf(convId)); Q_EMIT dataChanged(_idx, _idx); }
+            {
+                const auto _idx = index(indexOf(convId));
+                Q_EMIT dataChanged(_idx, _idx);
+            }
         });
 
         if (isTemporary) {
@@ -1374,13 +1353,15 @@ ConversationModel::clearHistory(const QString& uid)
     storage::clearHistory(d_->db, uid);
     // Update conversation
     conversation.interactions->clear();
-    storage::getHistory(d_->db,
-                        conversation,
+    storage::getHistory(d_->db, conversation,
                         owner.profileInfo.uri); // will contain "Conversation started"
 
     Q_EMIT modelChanged();
     Q_EMIT conversationCleared(uid);
-    { const auto _idx = index(conversationIdx); Q_EMIT QAbstractListModel::dataChanged(_idx, _idx); }
+    {
+        const auto _idx = index(conversationIdx);
+        Q_EMIT QAbstractListModel::dataChanged(_idx, _idx);
+    }
 }
 
 bool
@@ -1409,7 +1390,10 @@ ConversationModel::clearAllHistory()
             conversation.interactions->clear();
         }
         storage::getHistory(d_->db, conversation, owner.profileInfo.uri);
-        { const auto _idx = index(indexOf(conversation.uid)); Q_EMIT dataChanged(_idx, _idx); }
+        {
+            const auto _idx = index(indexOf(conversation.uid));
+            Q_EMIT dataChanged(_idx, _idx);
+        }
     }
     Q_EMIT modelChanged();
 }
@@ -1439,15 +1423,17 @@ ConversationModel::clearUnreadInteractions(const QString& convId)
         });
     }
     if (!lastDisplayedId.isEmpty()) {
-        auto to = conversation.isSwarm() ? "swarm:" + convId
-                                         : "jami:" + peersForConversationInfo(conversation).front();
+        auto to = conversation.isSwarm() ? "swarm:" + convId : "jami:" + peersForConversationInfo(conversation).front();
         ConfigurationManager::instance().setMessageDisplayed(owner.id, to, lastDisplayedId, 3);
     }
     if (updated) {
         conversation.unreadMessages = 0;
         invalidateModel();
         Q_EMIT conversationUpdated(convId);
-        { const auto _idx = index(indexOf(convId)); Q_EMIT dataChanged(_idx, _idx); }
+        {
+            const auto _idx = index(indexOf(convId));
+            Q_EMIT dataChanged(_idx, _idx);
+        }
     }
 }
 
@@ -1540,8 +1526,7 @@ ConversationModel::initConversationsImpl()
             addSwarmConversation(swarmConv);
         }
 
-        VectorMapStringString conversationsRequests = ConfigurationManager::instance().getConversationRequests(
-            owner.id);
+        VectorMapStringString conversationsRequests = ConfigurationManager::instance().getConversationRequests(owner.id);
         for (auto& request : conversationsRequests) {
             addConversationRequest(request);
         }
@@ -1568,11 +1553,11 @@ ConversationModel::initConversationsImpl()
                     addContactRequest(c.second.profileInfo.uri);
                     continue;
                 }
-                conv.push_back(storage::beginConversationWithPeer(d_->db,
-                                                                  c.second.profileInfo.uri,
-                                                                  true,
-                                                                  owner.contactModel->getAddedTs(
-                                                                      c.second.profileInfo.uri)));
+                conv.push_back(
+                    storage::beginConversationWithPeer(d_->db,
+                                                       c.second.profileInfo.uri,
+                                                       true,
+                                                       owner.contactModel->getAddedTs(c.second.profileInfo.uri)));
             }
             addConversationWith(conv[0], c.first, isRequest);
 
@@ -1671,7 +1656,8 @@ ConversationModel::filterConversation(const conversation::Info& entry)
         if (contactInfo.isBanned && peers.size() == 1) {
             if (d_->currentFilter == "")
                 return false;
-            return contactInfo.profileInfo.uri == d_->currentFilter || contactInfo.profileInfo.alias == d_->currentFilter
+            return contactInfo.profileInfo.uri == d_->currentFilter
+                   || contactInfo.profileInfo.alias == d_->currentFilter
                    || contactInfo.registeredName == d_->currentFilter;
         }
 
