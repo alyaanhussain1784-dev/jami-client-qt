@@ -5847,8 +5847,8 @@ Please confirm the import on the new device.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="1076"/>
-        <location filename="../src/core/conversationmodel.cpp" line="1089"/>
+        <location filename="../src/core/conversationmodel.cpp" line="1052"/>
+        <location filename="../src/core/conversationmodel.cpp" line="1065"/>
         <source>%1 (you)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6170,12 +6170,12 @@ Please confirm the import on the new device.</source>
 <context>
     <name>lrc::api::ConversationModel</name>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="340"/>
+        <location filename="../src/core/conversationmodel.cpp" line="314"/>
         <source>Deleted media</source>
         <translation type="unfinished">删除媒体</translation>
     </message>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="354"/>
+        <location filename="../src/core/conversationmodel.cpp" line="327"/>
         <source>(deleted message)</source>
         <translation type="unfinished"></translation>
     </message>

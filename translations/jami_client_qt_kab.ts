@@ -61,7 +61,7 @@
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="49"/>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="66"/>
         <source>Cancel</source>
-        <translation type="unfinished"/>
+        <translation>Sefsex</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="63"/>
@@ -187,12 +187,12 @@
     <message>
         <location filename="../src/app/commoncomponents/CollabNewDocPopup.qml" line="46"/>
         <source>Create</source>
-        <translation type="unfinished"/>
+        <translation>Snulfu</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabNewDocPopup.qml" line="51"/>
         <source>Cancel</source>
-        <translation type="unfinished"/>
+        <translation>Sefsex</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabNewDocPopup.qml" line="65"/>
@@ -269,7 +269,7 @@
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="395"/>
         <source>Cancel</source>
-        <translation type="unfinished"/>
+        <translation>Sefsex</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="409"/>
@@ -374,7 +374,7 @@
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1323"/>
         <source>Copy</source>
-        <translation type="unfinished"/>
+        <translation>Nɣel</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1328"/>
@@ -384,7 +384,7 @@
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1335"/>
         <source>Delete</source>
-        <translation type="unfinished"/>
+        <translation>Kkes</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1347"/>
@@ -5836,8 +5836,8 @@ Please confirm the import on the new device.</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="1076"/>
-        <location filename="../src/core/conversationmodel.cpp" line="1089"/>
+        <location filename="../src/core/conversationmodel.cpp" line="1052"/>
+        <location filename="../src/core/conversationmodel.cpp" line="1065"/>
         <source>%1 (you)</source>
         <translation type="unfinished"/>
     </message>
@@ -6159,12 +6159,12 @@ Please confirm the import on the new device.</source>
 <context>
     <name>lrc::api::ConversationModel</name>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="340"/>
+        <location filename="../src/core/conversationmodel.cpp" line="314"/>
         <source>Deleted media</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="354"/>
+        <location filename="../src/core/conversationmodel.cpp" line="327"/>
         <source>(deleted message)</source>
         <translation type="unfinished"/>
     </message>

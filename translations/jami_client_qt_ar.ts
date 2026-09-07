@@ -55,13 +55,13 @@
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="48"/>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="65"/>
         <source>Remove</source>
-        <translation type="unfinished"/>
+        <translation>احذف</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="49"/>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="66"/>
         <source>Cancel</source>
-        <translation type="unfinished"/>
+        <translation>ألغِ</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="63"/>
@@ -82,7 +82,7 @@
     <message>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="75"/>
         <source>Close</source>
-        <translation type="unfinished"/>
+        <translation>إغلاق</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabDocListPopup.qml" line="112"/>
@@ -134,7 +134,7 @@
     <message>
         <location filename="../src/app/mainview/components/CollabHistoryPanel.qml" line="116"/>
         <source>Refresh</source>
-        <translation type="unfinished"/>
+        <translation>تحديث</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabHistoryPanel.qml" line="126"/>
@@ -187,12 +187,12 @@
     <message>
         <location filename="../src/app/commoncomponents/CollabNewDocPopup.qml" line="46"/>
         <source>Create</source>
-        <translation type="unfinished"/>
+        <translation>إنشاء</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabNewDocPopup.qml" line="51"/>
         <source>Cancel</source>
-        <translation type="unfinished"/>
+        <translation>ألغِ</translation>
     </message>
     <message>
         <location filename="../src/app/commoncomponents/CollabNewDocPopup.qml" line="65"/>
@@ -269,7 +269,7 @@
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="395"/>
         <source>Cancel</source>
-        <translation type="unfinished"/>
+        <translation>ألغِ</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="409"/>
@@ -364,7 +364,7 @@
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1294"/>
         <source>Remove</source>
-        <translation type="unfinished"/>
+        <translation>احذف</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1305"/>
@@ -374,17 +374,17 @@
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1323"/>
         <source>Copy</source>
-        <translation type="unfinished"/>
+        <translation>نسخ</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1328"/>
         <source>Paste</source>
-        <translation type="unfinished"/>
+        <translation>لصق</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1335"/>
         <source>Delete</source>
-        <translation type="unfinished"/>
+        <translation>حذف</translation>
     </message>
     <message>
         <location filename="../src/app/mainview/components/CollabRichEditorWindow.qml" line="1347"/>
@@ -5847,8 +5847,8 @@ Please confirm the import on the new device.</source>
         <translation>الموقعالخدماتالمعروفةخطأ</translation>
     </message>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="1076"/>
-        <location filename="../src/core/conversationmodel.cpp" line="1089"/>
+        <location filename="../src/core/conversationmodel.cpp" line="1052"/>
+        <location filename="../src/core/conversationmodel.cpp" line="1065"/>
         <source>%1 (you)</source>
         <translation>%1 (أنت)</translation>
     </message>
@@ -6170,12 +6170,12 @@ Please confirm the import on the new device.</source>
 <context>
     <name>lrc::api::ConversationModel</name>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="340"/>
+        <location filename="../src/core/conversationmodel.cpp" line="314"/>
         <source>Deleted media</source>
         <translation>وسائط محذوفة</translation>
     </message>
     <message>
-        <location filename="../src/core/conversationmodel.cpp" line="354"/>
+        <location filename="../src/core/conversationmodel.cpp" line="327"/>
         <source>(deleted message)</source>
         <translation>(رسالة محذوفة)</translation>
     </message>
