@@ -23,6 +23,7 @@
 # Requirements
 # - createrepo-c
 # - dpkg
+# - gpg
 # - reprepro
 # - rpm
 # - rsync
@@ -153,6 +154,7 @@ function package_rpm()
 name=$name
 baseurl=$baseurl
 gpgcheck=1
+repo_gpgcheck=1
 gpgkey=https://dl.jami.net/jami.pub.key
 enabled=1
 EOF
@@ -180,6 +182,10 @@ EOF
 
     # Create the repo
     createrepo_c --update ${DISTRIBUTION_REPOSITORY_FOLDER}
+    gpg --batch --yes --armor --detach-sign \
+        --local-user "${KEYID}" \
+        --output "${DISTRIBUTION_REPOSITORY_FOLDER}/repodata/repomd.xml.asc" \
+        "${DISTRIBUTION_REPOSITORY_FOLDER}/repodata/repomd.xml"
 
     #######################################
     ## create the manual download folder ##
