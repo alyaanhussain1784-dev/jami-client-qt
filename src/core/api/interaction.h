@@ -290,7 +290,7 @@ getContactInteractionString(const QString& authorUri, const ContactAction& actio
     switch (action) {
     case ContactAction::ADD:
         if (authorUri.isEmpty()) {
-            return QObject::tr("Contact added");
+            return QObject::tr("You were invited to join the conversation.");
         }
         return QObject::tr("%1 was invited to join the conversation.").arg(authorUri);
     case ContactAction::JOIN:
