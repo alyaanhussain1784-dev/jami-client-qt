@@ -164,7 +164,6 @@ DISTRIBUTIONS := \
 	debian_testing \
 	debian_unstable \
 	ubuntu_24.04 \
-	ubuntu_25.10 \
 	ubuntu_26.04 \
 	fedora_43 \
 	fedora_44 \
