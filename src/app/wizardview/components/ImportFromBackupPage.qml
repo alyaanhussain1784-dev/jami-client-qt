@@ -1,0 +1,262 @@
+/*
+* Copyright (C) 2021-2026 Savoir-faire Linux Inc.
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.platform
+import net.jami.Models 1.1
+import net.jami.Adapters 1.1
+import net.jami.Constants 1.1
+import "../../commoncomponents"
+
+Rectangle {
+    id: root
+
+    property int preferredHeight: importFromBackupPageColumnLayout.implicitHeight + 2
+                                  * JamiTheme.preferredMarginSize
+
+    property string fileImportBtnText: JamiStrings.archive
+    property string filePath: ""
+    property string errorText: ""
+    property bool spinnerTriggered: false
+
+    signal showThisPage
+
+    function clearAllTextFields() {
+        filePath = "";
+        errorText = "";
+        fileImportBtnText = JamiStrings.selectArchiveFile;
+    }
+
+    function errorOccurred(errorMessage) {
+        errorText = errorMessage;
+    }
+
+    Connections {
+        target: WizardViewStepModel
+
+        function onMainStepChanged() {
+            if (WizardViewStepModel.mainStep === WizardViewStepModel.MainSteps.AccountCreation
+                    && WizardViewStepModel.accountCreationOption
+                    === WizardViewStepModel.AccountCreationOption.ImportFromBackup) {
+                clearAllTextFields();
+                root.showThisPage();
+            }
+        }
+    }
+
+    color: JamiTheme.secondaryBackgroundColor
+
+    ColumnLayout {
+        id: importFromBackupPageColumnLayout
+
+        spacing: JamiTheme.wizardViewPageLayoutSpacing
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+
+        width: Math.max(508, root.width - 100)
+
+        Text {
+
+            text: JamiStrings.importFromArchiveBackup
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.preferredMarginSize
+            Layout.preferredWidth: Math.min(360, root.width - JamiTheme.preferredMarginSize * 2)
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+
+            color: JamiTheme.textColor
+            font.pixelSize: JamiTheme.wizardViewTitleFontPixelSize
+            wrapMode: Text.WordWrap
+        }
+
+        Text {
+
+            text: JamiStrings.importFromArchiveBackupDescription
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewDescriptionMarginSize
+            Layout.preferredWidth: Math.min(400, root.width - JamiTheme.preferredMarginSize * 2)
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            color: JamiTheme.textColor
+
+            font.pixelSize: JamiTheme.wizardViewDescriptionFontPixelSize
+            wrapMode: Text.WordWrap
+            lineHeight: JamiTheme.wizardViewTextLineHeight
+        }
+
+        NewMaterialButton {
+            id: fileImportBtn
+
+            objectName: "fileImportBtn"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewBlocMarginSize
+
+            implicitHeight: JamiTheme.newMaterialButtonSetupHeight
+
+            outlinedButton: true
+            text: fileImportBtnText
+            toolTipText: JamiStrings.importAccountArchive
+
+            focus: visible
+
+            onClicked: {
+                errorText = "";
+                var dlg = viewCoordinator.presentDialog(appWindow,
+                                                        "commoncomponents/JamiFileDialog.qml", {
+                                                            "title": JamiStrings.openFile,
+                                                            "fileMode": JamiFileDialog.OpenFile,
+                                                            "folder": StandardPaths.writableLocation(
+                                                                          StandardPaths.HomeLocation)
+                                                                      + "/Desktop",
+                                                            "nameFilters":
+                                                                [JamiStrings.jamiAccountFiles,
+                                                                JamiStrings.allFiles]
+                                                        });
+                dlg.fileAccepted.connect(function (file) {
+                    filePath = file;
+                    if (file.length !== "") {
+                        fileImportBtnText = UtilsAdapter.toFileInfoName(file);
+                        passwordFromBackupEdit.forceActiveFocus();
+                    } else {
+                        fileImportBtnText = JamiStrings.archive;
+                    }
+                });
+                dlg.rejected.connect(function () {
+                    fileImportBtn.forceActiveFocus();
+                });
+            }
+        }
+
+        Text {
+            text: JamiStrings.passwordArchive
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewBlocMarginSize
+            Layout.preferredWidth: Math.min(350, root.width - JamiTheme.preferredMarginSize * 2)
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            color: JamiTheme.textColor
+
+            font.pixelSize: JamiTheme.wizardViewDescriptionFontPixelSize
+            wrapMode: Text.WordWrap
+            lineHeight: JamiTheme.wizardViewTextLineHeight
+        }
+
+        PasswordTextEdit {
+            id: passwordFromBackupEdit
+
+            objectName: "passwordFromBackupEdit"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewMarginSize
+            Layout.maximumWidth: Math.min(440, root.width - JamiTheme.preferredMarginSize * 2)
+
+            placeholderText: JamiStrings.enterPassword
+        }
+
+        NewMaterialButton {
+            id: connectBtn
+
+            objectName: "importFromBackupPageConnectBtn"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.bottomMargin: errorLabel.visible ? 0 : JamiTheme.wizardViewPageBackButtonMargins
+            Layout.topMargin: JamiTheme.wizardViewBlocMarginSize
+
+            implicitHeight: JamiTheme.newMaterialButtonSetupHeight
+
+            filledButton: true
+            text: JamiStrings.importButton
+            enabled: !(filePath.length === 0) && errorText.length === 0
+
+            onClicked: {
+                if (connectBtn.focus)
+                    fileImportBtn.forceActiveFocus();
+                root.spinnerTriggered = true;
+                WizardViewStepModel.accountCreationInfo = JamiQmlUtils.setUpAccountCreationInputPara({
+                        "archivePath": UtilsAdapter.getAbsPath(filePath),
+                        "password": passwordFromBackupEdit.modifiedTextFieldContent
+                    });
+                WizardViewStepModel.nextStep();
+            }
+        }
+
+        Button {
+            id: spinnerIcon
+
+            Layout.alignment: Qt.AlignHCenter
+
+            padding: 0
+
+            icon.width: JamiTheme.iconButtonMedium
+            icon.height: JamiTheme.iconButtonMedium
+            icon.source: JamiResources.jami_rolling_spinner_gif
+            icon.color: JamiTheme.tintedBlue
+
+            visible: root.spinnerTriggered
+
+            background: null
+            enabled: false
+
+            RotationAnimator {
+                id: rotationAnimator
+                target: spinnerIcon
+                running: root.spinnerTriggered
+                from: 0
+                to: 360
+                duration: 1000
+                loops: Animation.Infinite
+            }
+        }
+
+        Label {
+            id: errorLabel
+
+            objectName: "errorLabel"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.bottomMargin: JamiTheme.wizardViewPageBackButtonMargins
+
+            visible: errorText.length !== 0
+
+            text: errorText
+            font.pixelSize: JamiTheme.textEditError
+            color: JamiTheme.redColor
+        }
+    }
+
+    NewIconButton {
+        id: backButton
+        QWKSetParentHitTestVisible {}
+
+        objectName: "importFromBackupPageBackButton"
+
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 20
+
+        visible: !connectBtn.spinnerTriggered
+
+        iconSize: JamiTheme.iconButtonMedium
+        iconSource: JamiResources.bidirectional_arrow_back_24dp_svg
+        toolTipText: JamiStrings.back
+
+        onClicked: WizardViewStepModel.previousStep()
+    }
+}

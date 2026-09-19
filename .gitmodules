@@ -1,0 +1,24 @@
+[submodule "daemon"]
+	path = daemon
+	url = https://review.jami.net/jami-daemon
+# Sparkle is updater for macOS
+[submodule "extras/packaging/update/sparkle/Sparkle"]
+	path = extras/packaging/update/sparkle/Sparkle
+	url = https://github.com/sparkle-project/Sparkle.git
+	ignore = dirty
+[submodule "3rdparty/md4c"]
+	path = 3rdparty/md4c
+	url = https://github.com/fsimonfc/md4c.git
+	ignore = dirty
+[submodule "3rdparty/tidy-html5"]
+	path = 3rdparty/tidy-html5
+	url = https://github.com/aberaud/tidy-html5.git
+	ignore = dirty
+[submodule "3rdparty/zxing-cpp"]
+	path = 3rdparty/zxing-cpp
+	url = https://github.com/nu-book/zxing-cpp.git
+        ignore = dirty
+[submodule "3rdparty/hunspell"]
+	path = 3rdparty/hunspell
+	url = https://gitlab.savoirfairelinux.com/jami/hunspell.git
+	ignore = dirty

@@ -1,0 +1,61 @@
+*.user
+doc/Doxyfile
+
+### VisualStudioCode ###
+.vscode/**/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+**/.history
+
+GeneratedFiles/
+x64/
+x86/
+[wW]in32/
+.qmake.stash
+.cache/
+debug/
+release/
+beta/
+*.dll
+*.qm
+nuget.exe
+*.autosave
+changelog.html
+obj/
+build*/
+.build*/
+!extras/build
+build-local/
+build-global/
+install/
+*.vcxproj
+*.vcxproj.filters
+*qmlcache.qrc
+.deploy.stamp
+*.orig
+*.log
+*.pid
+
+# tests
+Testing/
+
+# auto-gen files
+src/app/resources.qrc
+src/app/qml.qrc
+src/app/constant/JamiResources.qml
+
+# macOS
+.DS_Store
+
+# packaging
+.tarball-version
+tarballs.manifest
+jami-*.tar.gz
+extras/packaging/gnu-linux/packages/
+.docker-image-*

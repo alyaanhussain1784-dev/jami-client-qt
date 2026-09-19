@@ -1,0 +1,127 @@
+/*
+ * Copyright (C) 2022-2025 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation; either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public
+ * License along with this program.  If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
+// Requirements:
+// - gerrit-trigger plugin
+// - Docker plugin
+// - ansicolor plugin
+
+pipeline {
+    agent {
+        node {
+            label 'jami-buildmachine-04.mtl.sfl'
+        }
+    }
+
+    triggers {
+        gerrit customUrl: '',
+            gerritProjects: [
+                [branches: [[compareType: 'PLAIN', pattern: 'master']],
+                 compareType: 'PLAIN',
+                 disableStrictForbiddenFileVerification: false,
+                 pattern: 'jami-client-qt']],
+            triggerOnEvents: [
+                commentAddedContains('!build'),
+                patchsetCreated(excludeDrafts: true, excludeNoCodeChange: true,
+                    excludeTrivialRebase: true)]
+    }
+
+    options {
+        ansiColor('xterm')
+    }
+
+    parameters {
+        string(name: 'GERRIT_REFSPEC',
+                defaultValue: 'refs/heads/master',
+                description: 'The Gerrit refspec to fetch.')
+    }
+
+    stages {
+        stage('SCM Checkout') {
+            steps {
+                // Wipe workspace and fetch jami-daemon
+                checkout changelog: true, poll: false,
+                    scm: [$class: 'GitSCM',
+                        branches: [[name: 'FETCH_HEAD']],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [
+                            [$class: 'CloneOption', noTags: true, reference: '', shallow: true],
+                            [$class: 'WipeWorkspace']],
+                        submoduleCfg: [],
+                        userRemoteConfigs: [[refspec: '${GERRIT_REFSPEC}', url: 'https://${JAMI_GERRIT_URL}/jami-client-qt']]]
+            }
+        }
+
+        stage('Init repository') {
+            steps {
+                script {
+                    sh """
+                        git rev-parse HEAD
+                        git submodule update --init --recursive
+                    """
+                }
+            }
+        }
+
+        stage('Building Docker Image') {
+            steps {
+                script {
+                    docker.build('client-validation', "-f extras/build/docker/Dockerfile.client-qt-gnulinux .")
+                }
+            }
+        }
+
+        stage('Build Client') {
+            steps {
+                script {
+                    def jenkinsUID = sh(returnStdout: true, script: 'id -u jenkins').replaceAll("\n", '').trim()
+                    def jenkinsGID = sh(returnStdout: true, script: 'id -g jenkins').replaceAll("\n", '').trim()
+                    def jenkinsUser = jenkinsUID+':'+jenkinsGID
+                    def cpuCount = sh returnStdout: true, script: 'nproc || echo -n 4'
+
+                    docker.image('client-validation').withRun('-t -u '+jenkinsUser+' -v '+pwd()+':/foo:rw -v /var/cache/jami:/var/cache/jami:rw -w /foo -e BATCH_MODE=1 -e TARBALLS=$TARBALLS -e CACHE_DIR=$CACHE_DIR', '/bin/bash') {
+                        container -> code:{
+                            def base_cmd = 'docker exec -t '+container.id+" sh -c '"
+                            def exec_cmd = { cmd -> sh base_cmd+cmd+"'" }
+
+                            def dockerTopDir = '/foo/'
+                            ansiColor('css') {
+                                exec_cmd("""
+                                    cmake -B ${dockerTopDir}/build ${dockerTopDir} \\
+                                        -DCMAKE_BUILD_TYPE=Release \\
+                                        -DCMAKE_INSTALL_PREFIX=${dockerTopDir}/install \\
+                                        -DBUILD_TESTING=On \\
+                                        -DCMAKE_PREFIX_PATH=/usr/lib/libqt-jami/
+                                    cmake --build ${dockerTopDir}/build -j${cpuCount}
+                                """)
+                                // Run tests sequentially: both test suites share the same
+                                // jami temp directory (/tmp/jami_test/) and both wipe it at
+                                // startup, so parallel execution causes a SEGFAULT when the
+                                // unit tests delete the dirs mid-run of the QML test suite.
+                                exec_cmd("""
+                                    HOME=/tmp ctest --test-dir ${dockerTopDir}/build/tests -V -C Release -R ^Qml_Tests\$
+                                    HOME=/tmp ctest --test-dir ${dockerTopDir}/build/tests -V -C Release -R ^Unit_Tests\$
+                                """)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

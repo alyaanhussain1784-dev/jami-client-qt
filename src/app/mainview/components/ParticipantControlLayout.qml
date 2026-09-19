@@ -1,0 +1,111 @@
+/*
+ * Copyright (C) 2020-2026 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import QtQuick.Layouts
+import net.jami.Adapters 1.1
+import net.jami.Constants 1.1
+import "../../commoncomponents"
+
+RowLayout {
+    id: root
+
+    property int visibleButtons: toggleModerator.visible + toggleMute.visible + maximizeParticipant.visible + minimizeParticipant.visible + disconnectParticipant.visible
+
+    spacing: 8
+
+    ParticipantOverlayButton {
+        id: toggleModerator
+
+        visible: showSetModerator || showUnsetModerator
+        preferredSize: iconButtonPreferredSize
+        Layout.preferredHeight: buttonPreferredSize
+        Layout.preferredWidth: buttonPreferredSize
+        Layout.alignment: Qt.AlignVCenter
+        source: JamiResources.moderator_24dp_svg
+        onClicked: CallAdapter.setModerator(uri, showSetModerator)
+        toolTipText: showSetModerator ? JamiStrings.setModerator : JamiStrings.unsetModerator
+    }
+
+    ParticipantOverlayButton {
+        id: toggleMute
+
+        visible: showModeratorMute || showModeratorUnmute
+        preferredSize: iconButtonPreferredSize
+        Layout.preferredHeight: buttonPreferredSize
+        Layout.preferredWidth: buttonPreferredSize
+        Layout.alignment: Qt.AlignVCenter
+        source: showModeratorMute ? JamiResources.micro_black_24dp_svg : JamiResources.micro_off_black_24dp_svg
+        checkable: CurrentCall.isModerator
+        onClicked: {
+            if (participantIsModeratorMuted && isLocalMuted) {
+                if (isMe)
+                    muteAlertMessage = JamiStrings.mutedLocally;
+                else
+                    muteAlertMessage = JamiStrings.participantMicIsStillMuted;
+                muteAlertActive = true;
+            }
+            CallAdapter.muteParticipant(uri, deviceId, sinkId, showModeratorMute);
+        }
+        toolTipText: {
+            if (!checkable && participantIsModeratorMuted)
+                return JamiStrings.mutedByModerator;
+            if (showModeratorMute)
+                return JamiStrings.muteParticipant;
+            else
+                return JamiStrings.unmuteParticipant;
+        }
+    }
+
+    ParticipantOverlayButton {
+        id: maximizeParticipant
+
+        visible: showMaximize
+        preferredSize: iconButtonPreferredSize
+        Layout.preferredHeight: buttonPreferredSize
+        Layout.preferredWidth: buttonPreferredSize
+        Layout.alignment: Qt.AlignVCenter
+        source: JamiResources.open_in_full_24dp_svg
+        onClicked: CallAdapter.setActiveStream(uri, deviceId, sinkId)
+        toolTipText: JamiStrings.maximizeParticipant
+    }
+
+    ParticipantOverlayButton {
+        id: minimizeParticipant
+
+        visible: showMinimize
+        preferredSize: iconButtonPreferredSize
+        Layout.preferredHeight: buttonPreferredSize
+        Layout.preferredWidth: buttonPreferredSize
+        Layout.alignment: Qt.AlignVCenter
+        source: JamiResources.close_fullscreen_24dp_svg
+        onClicked: CallAdapter.minimizeParticipant(uri)
+        toolTipText: JamiStrings.minimizeParticipant
+    }
+
+    ParticipantOverlayButton {
+        id: disconnectParticipant
+
+        visible: showDisconnect
+        preferredSize: iconButtonPreferredSize
+        Layout.preferredHeight: buttonPreferredSize
+        Layout.preferredWidth: buttonPreferredSize
+        Layout.alignment: Qt.AlignVCenter
+        source: JamiResources.disconnect_participant_24dp_svg
+        onClicked: CallAdapter.disconnectParticipant(uri, deviceId)
+        toolTipText: JamiStrings.disconnectParticipant
+    }
+}

@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Jami-Client-Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "",
+            "linux":{
+                "MIMode": "gdb",
+                "program": "${workspaceFolder}/build/jami",
+                "args": [
+                    "-d",
+                ],
+            },
+            "osx": {
+                "MIMode": "lldb",
+                "program": "${workspaceFolder}/build/Jami.app/Contents/MacOS/Jami",
+                "environment": [
+                    {
+                        "name": "NO_COLOR",
+                        "value": "true",
+                    }
+                ],
+            },
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cmake-build",
+            "externalConsole": false, // A macOS dev may want to set this to true.
+        },
+        {
+            // Using this configuration will require manually reconfiguring the project using
+            // build.py --no-libwrap, otherwise the daemon executable will not be built and the
+            // client will not be built with ENABLE_LIBWRAP=False.
+            "name": "Jami-Daemon-Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "linux": {
+                "MIMode": "gdb",
+                "program": "${workspaceFolder}/daemon/bin/dbus/jamid",
+            },
+            "program": "",
+            "args": [
+                "-cdp",
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cmake-build",
+        }
+    ]
+}

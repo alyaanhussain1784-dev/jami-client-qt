@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Building Qt Multimedia requires the FFmpeg headers and libraries to be installed:
+#     https://doc.qt.io/qt-6.10/qtmultimedia-building-from-source.html
+# For Qt 6.10.3, the recommended FFmpeg version is 7.1.3:
+#     https://doc.qt.io/qt-6.10/qtmultimedia-index.html#target-platform-and-backend-notes
+# This script is based on the instructions at:
+#     https://doc.qt.io/qt-6.10/qtmultimedia-building-ffmpeg-linux.html
+
+set -e
+
+PROC="${PROC:-$(nproc 2>/dev/null || echo 4)}"
+
+INSTALL_DIR=/opt/libqt-jami-ffmpeg
+
+cd /tmp
+git clone --branch n11.1.5.2 https://github.com/FFmpeg/nv-codec-headers.git nv-codec-headers
+cd nv-codec-headers
+make -j"${PROC}" install
+
+cd /tmp
+git clone --branch n7.1.3 https://git.ffmpeg.org/ffmpeg.git ffmpeg
+cd ffmpeg
+mkdir build
+cd build
+../configure --prefix=${INSTALL_DIR} --disable-doc --enable-network --enable-shared
+make -j"${PROC}" install
+
+cd /tmp
+rm -rf nv-codec-headers ffmpeg

@@ -1,0 +1,243 @@
+/*
+* Copyright (C) 2021-2026 Savoir-faire Linux Inc.
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import net.jami.Models 1.1
+import net.jami.Constants 1.1
+import "../../commoncomponents"
+
+Rectangle {
+    id: root
+
+    property int preferredHeight: connectToAccountManagerPageColumnLayout.implicitHeight + 2
+                                  * JamiTheme.preferredMarginSize
+    property string errorText: ""
+
+    property bool spinnerTriggered: false
+
+    signal showThisPage
+
+    function clearAllTextFields() {
+        errorText = "";
+    }
+
+    function errorOccurred(errorMessage) {
+        errorText = errorMessage;
+        spinnerTriggered = false;
+    }
+
+    Connections {
+        target: WizardViewStepModel
+
+        function onMainStepChanged() {
+            if (WizardViewStepModel.mainStep === WizardViewStepModel.MainSteps.AccountCreation
+                    && WizardViewStepModel.accountCreationOption
+                    === WizardViewStepModel.AccountCreationOption.ConnectToAccountManager) {
+                clearAllTextFields();
+                root.showThisPage();
+            }
+        }
+    }
+
+    color: JamiTheme.secondaryBackgroundColor
+
+    ColumnLayout {
+        id: connectToAccountManagerPageColumnLayout
+
+        spacing: JamiTheme.wizardViewPageLayoutSpacing
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        width: Math.max(508, root.width - 100)
+
+        Text {
+
+            text: JamiStrings.connectJAMSServer
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.preferredMarginSize
+            Layout.preferredWidth: Math.min(360, root.width - JamiTheme.preferredMarginSize * 2)
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            color: JamiTheme.textColor
+
+            font.pixelSize: JamiTheme.wizardViewTitleFontPixelSize
+            wrapMode: Text.WordWrap
+        }
+
+        Text {
+
+            text: JamiStrings.enterJAMSURL
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewBlocMarginSize
+            font.weight: Font.Medium
+
+            Layout.preferredWidth: Math.min(400, root.width - JamiTheme.preferredMarginSize * 2)
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            color: JamiTheme.textColor
+
+            font.pixelSize: JamiTheme.wizardViewDescriptionFontPixelSize
+            wrapMode: Text.WordWrap
+        }
+
+        NewMaterialTextField {
+            id: accountManagerEdit
+
+            objectName: "accountManagerEdit"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewMarginSize
+            Layout.maximumWidth: Math.min(440, root.width - JamiTheme.preferredMarginSize * 2)
+
+            focus: visible
+
+            leadingIconSource: JamiResources.jami_logo_icon_24dp_svg
+            placeholderText: JamiStrings.jamiManagementServerURL
+        }
+
+        Label {
+            id: credentialsLabel
+
+            text: JamiStrings.jamsCredentials
+
+            Layout.alignment: Qt.AlignCenter
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            Layout.preferredWidth: Math.min(450, root.width - JamiTheme.preferredMarginSize * 2)
+            Layout.topMargin: JamiTheme.wizardViewBlocMarginSize
+            font.weight: Font.Medium
+            font.pixelSize: JamiTheme.wizardViewDescriptionFontPixelSize
+
+            color: JamiTheme.textColor
+            wrapMode: Text.Wrap
+        }
+
+        NewMaterialTextField {
+            id: usernameManagerEdit
+
+            objectName: "usernameManagerEdit"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewMarginSize
+            Layout.maximumWidth: Math.min(440, root.width - JamiTheme.preferredMarginSize * 2)
+
+            leadingIconSource: JamiResources.person_24dp_svg
+            placeholderText: JamiStrings.username
+        }
+
+        PasswordTextEdit {
+            id: passwordManagerEdit
+
+            objectName: "passwordManagerEdit"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.maximumWidth: Math.min(440, root.width - JamiTheme.preferredMarginSize * 2)
+            Layout.topMargin: JamiTheme.wizardViewMarginSize
+
+            placeholderText: JamiStrings.password
+        }
+
+        Button {
+            id: spinnerIcon
+
+            Layout.alignment: Qt.AlignHCenter
+
+            padding: 0
+
+            icon.width: JamiTheme.iconButtonMedium
+            icon.height: JamiTheme.iconButtonMedium
+            icon.source: JamiResources.jami_rolling_spinner_gif
+            icon.color: JamiTheme.tintedBlue
+
+            visible: root.spinnerTriggered
+
+            background: null
+            enabled: false
+
+            RotationAnimator {
+                id: rotationAnimator
+                target: spinnerIcon
+                running: root.spinnerTriggered
+                from: 0
+                to: 360
+                duration: 1000
+                loops: Animation.Infinite
+            }
+        }
+
+        NewMaterialButton {
+            id: connectBtn
+
+            objectName: "connectToAccountManagerPageConnectBtn"
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.topMargin: JamiTheme.wizardViewBlocMarginSize
+            Layout.bottomMargin: errorLabel.visible ? 0 : JamiTheme.wizardViewPageBackButtonMargins
+
+            implicitHeight: JamiTheme.newMaterialButtonSetupHeight
+
+            enabled: accountManagerEdit.modifiedTextFieldContent.length !== 0 && usernameManagerEdit.modifiedTextFieldContent.length !== 0 && passwordManagerEdit.modifiedTextFieldContent.length !== 0 && !root.spinnerTriggered
+
+            filledButton: true
+            text: JamiStrings.connect
+
+            onClicked: {
+                if (connectBtn.focus)
+                    accountManagerEdit.forceActiveFocus();
+                root.spinnerTriggered = true;
+                WizardViewStepModel.accountCreationInfo = JamiQmlUtils.setUpAccountCreationInputPara({
+                        "username": usernameManagerEdit.modifiedTextFieldContent,
+                        "password": passwordManagerEdit.modifiedTextFieldContent,
+                        "manager": accountManagerEdit.modifiedTextFieldContent
+                    });
+                WizardViewStepModel.nextStep();
+            }
+        }
+
+        Label {
+            id: errorLabel
+
+            Layout.alignment: Qt.AlignCenter
+            Layout.bottomMargin: JamiTheme.wizardViewPageBackButtonMargins
+
+            visible: errorText.length !== 0
+            text: errorText
+
+            font.pixelSize: JamiTheme.textEditError
+            color: JamiTheme.redColor
+        }
+    }
+
+    NewIconButton {
+        id: backButton
+        QWKSetParentHitTestVisible {}
+
+        objectName: "connectToAccountManagerPageBackButton"
+
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 20
+
+        visible: !root.spinnerTriggered
+
+        iconSize: JamiTheme.iconButtonMedium
+        iconSource: JamiResources.bidirectional_arrow_back_24dp_svg
+        toolTipText: JamiStrings.back
+
+        onClicked: WizardViewStepModel.previousStep()
+    }
+}

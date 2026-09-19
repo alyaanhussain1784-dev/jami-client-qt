@@ -1,0 +1,54 @@
+/*
+ * Copyright (C) 2021-2026 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "abstractlistmodelbase.h"
+#include "selectablelistproxymodel.h"
+
+#include <api/conversationmodel.h>
+
+// A wrapper view model around ConversationModel's search result data
+class SearchResultsListModel : public AbstractListModelBase
+{
+    Q_OBJECT
+
+public:
+    explicit SearchResultsListModel(LRCInstance* instance, QObject* parent = nullptr);
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    QHash<int, QByteArray> roleNames() const override;
+
+    Q_INVOKABLE void setFilter(const QString& filterString);
+
+public Q_SLOTS:
+    void onSearchResultsUpdated();
+
+private:
+    lrc::api::ConversationModel* model_ {nullptr};
+};
+
+// The top level pre sorted and filtered model to be consumed by QML ListViews
+class SearchResultsListProxyModel final : public SelectableListProxyModel
+{
+    Q_OBJECT
+
+public:
+    explicit SearchResultsListProxyModel(QAbstractListModel* model, QObject* parent = nullptr)
+        : SelectableListProxyModel(model, parent) {};
+};

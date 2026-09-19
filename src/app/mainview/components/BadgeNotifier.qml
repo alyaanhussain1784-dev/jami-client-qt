@@ -1,0 +1,84 @@
+/*
+ * Copyright (C) 2021-2026 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import QtQuick
+import net.jami.Constants 1.1
+
+Rectangle {
+    id: root
+
+    property real size
+    property int count: 0
+    property int lastCount: count
+    property bool populated: false
+    property bool animate: true
+    property color badgeColor: JamiTheme.filterBadgeColor
+    property color badgeTextColor: JamiTheme.filterBadgeTextColor
+
+    width: size
+    height: size
+
+    radius: height / 2
+    color: badgeColor
+
+    visible: count > 0
+
+    Text {
+        id: countLabel
+
+        anchors.centerIn: root
+        text: count > 9 ? "9+" : count
+        color: root.badgeTextColor
+        font.pointSize: JamiTheme.filterBadgeFontSize
+        font.weight: Font.ExtraBold
+    }
+
+    onCountChanged: {
+        if (count > lastCount && animate)
+            notifyAnim.start();
+        lastCount = count;
+        if (!populated)
+            populated = true;
+    }
+    ParallelAnimation {
+        id: notifyAnim
+
+        ColorAnimation {
+            target: root
+            properties: "color"
+            from: root.badgeTextColor
+            to: root.badgeColor
+            duration: 150
+            easing.type: Easing.InOutQuad
+        }
+        ColorAnimation {
+            target: countLabel
+            properties: "color"
+            from: root.badgeColor
+            to: root.badgeTextColor
+            duration: 150
+            easing.type: Easing.InOutQuad
+        }
+        NumberAnimation {
+            target: root
+            property: "y"
+            from: -3
+            to: 0
+            duration: 150
+            easing.type: Easing.InOutQuad
+        }
+    }
+}

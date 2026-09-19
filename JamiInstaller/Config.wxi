@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include>
+    <?define Name="Jami" ?>
+    <?define ExeName="Jami" ?>
+    <?define AppName="Jami" ?>
+    <?define Manufacturer="Savoir-Faire Linux"?>
+    <?define ReleaseDir="..\x64\Release"?>
+</Include>

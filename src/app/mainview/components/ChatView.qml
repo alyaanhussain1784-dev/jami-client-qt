@@ -1,0 +1,680 @@
+/*
+ * Copyright (C) 2020-2026 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
+import net.jami.Models 1.1
+import net.jami.Adapters 1.1
+import net.jami.Constants 1.1
+import net.jami.Enums 1.1
+import "../../commoncomponents"
+import "../js/pluginhandlerpickercreation.js" as PluginHandlerPickerCreation
+
+Item {
+    id: root
+
+    // HACK: Added to capture the mouse when the layouts start stacking.
+    // The header and footer we're unable to be interacted with otherwise.
+    MouseArea {
+        anchors.fill: parent
+        propagateComposedEvents: false
+        enabled: typeof viewCoordinator !== "undefined" && viewCoordinator.isInSinglePaneMode
+    }
+
+    // An enum to make the details panels more readable.
+    enum ExtrasPanel {
+        SwarmDetailsPanel,
+        MessagesResearchPanel,
+        AddMemberPanel,
+        ConversationStatusPanel
+    }
+
+    property var mapPositions: PositionManager.mapStatus
+    property bool isConversationEndedFlag: false
+
+    // Injected conversation context; defaults to the global singleton for
+    // the main window.
+    property var convContext: CurrentConversation
+
+    property bool createMapViewOnPositionSignal: true
+
+    // The purpose of this alias is to make the message bar
+    // accessible to the EmojiPicker
+    property alias messageBar: chatViewFooter.messageBar
+
+    required property bool inCallView
+
+    // Hide the extrasPanel when going into a call view, but save the previous
+    // state to restore it when leaving the call view.
+    property int chatExtrasPanelIndex: extrasPanel.currentIndex
+    onInCallViewChanged: {
+        if (inCallView) {
+            chatExtrasPanelIndex = extrasPanel.currentIndex;
+            extrasPanel.closePanel();
+        } else if (chatExtrasPanelIndex >= 0) {
+            extrasPanel.openPanel(chatExtrasPanelIndex);
+        }
+    }
+
+    property bool detailsButtonVisibility: detailsButton.visible
+
+    readonly property bool interactionButtonsVisibility: {
+        if (convContext.inCall)
+            return false;
+        if (LRCInstance.currentAccountType === Profile.Type.SIP)
+            return true;
+        if (!convContext.isTemporary && !convContext.isSwarm)
+            return false;
+        if (convContext.isRequest || convContext.needsSyncing)
+            return false;
+        return true;
+    }
+
+    property bool addMemberVisibility: {
+        return swarmDetailsVisibility && !convContext.isCoreDialog && !convContext.isRequest;
+    }
+
+    property bool swarmDetailsVisibility: {
+        return convContext.isSwarm && !convContext.isRequest;
+    }
+
+    signal dismiss
+
+    function focusChatView() {
+        chatViewFooter.updateMessageDraft();
+        chatViewFooter.textInput.forceActiveFocus();
+    }
+
+    function instanceMapObject() {
+        if (WITH_WEBENGINE) {
+            // The map view intentionally does not set a WebEngineProfile, so it
+            // uses the application-wide default profile. In --single-process mode
+            // Chromium supports only a single profile; creating a dedicated one
+            // for the map crashed when another WebEngineView already existed.
+            var component = Qt.createComponent("qrc:/webengine/map/MapPosition.qml");
+            if (component.status !== Component.Ready) {
+                console.log("Error loading MapPosition:", component.errorString());
+                return;
+            }
+            var sprite = component.createObject(root, {
+                                                    "maxWidth": root.width,
+                                                    "maxHeight": root.height,
+                                                    "attachedAccountId": CurrentAccount.id
+                                                });
+            if (sprite === null) {
+                console.log("Error creating MapPosition object");
+            }
+        }
+    }
+
+    function isConversationEnded() {
+        if (!convContext.isSwarm)
+            return false;
+        var myRole = UtilsAdapter.getParticipantRole(CurrentAccount.id, convContext.id, CurrentAccount.uri);
+        var info = ConversationsAdapter.getConvInfoMap(convContext.id);
+        var peers = info && info.uris ? info.uris : [];
+        peers = peers.filter(function(u) { return u !== CurrentAccount.uri; });
+        for (var i = 0; i < peers.length; i++) {
+            var role = UtilsAdapter.getParticipantRole(CurrentAccount.id, convContext.id, peers[i]);
+            if (!(role === Member.Role.LEFT || role === Member.Role.BANNED)) {
+                return false;
+            }
+        }
+        if (convContext.isCoreDialog) {
+            // Check if a conversation with oneself has been removed
+            const peerRole = UtilsAdapter.getParticipantRole(CurrentAccount.id, convContext.id, peers[0]);
+            return peerRole === Member.Role.LEFT;
+        }
+        return myRole !== Member.Role.ADMIN;
+    }
+
+    function updateConversationEndedFlag() {
+        var newVal = isConversationEnded();
+        if (isConversationEndedFlag !== newVal) {
+            isConversationEndedFlag = newVal;
+        }
+    }
+
+    // Used externally to switch to a extras panel.
+    function switchToPanel(panel, toggle = true) {
+        extrasPanel.switchToPanel(panel, toggle);
+    }
+
+    // Used externally to close the extras panel.
+    function closePanel() {
+        extrasPanel.closePanel();
+    }
+
+    Connections {
+        target: root.createMapViewOnPositionSignal ? PositionManager : null
+        function onOpenNewMap() {
+            instanceMapObject();
+        }
+    }
+
+    Connections {
+        target: LRCInstance
+        function onConversationUpdated(convId, accountId) {
+            if (convId === convContext.id) {
+                updateConversationEndedFlag();
+            }
+        }
+    }
+    Connections {
+        target: convContext.members
+        function onCountChanged() {
+            updateConversationEndedFlag();
+        }
+    }
+
+    Connections {
+        target: convContext
+        function onIdChanged() {
+            MessagesAdapter.loadMoreMessages();
+            updateConversationEndedFlag();
+        }
+    }
+
+    onVisibleChanged: {
+        if (visible) {
+            chatViewSplitView.resolvePanes(true);
+            Qt.callLater(updateConversationEndedFlag);
+        }
+    }
+
+    Item {
+        id: container
+
+        anchors.fill: parent
+
+        Rectangle {
+            anchors.fill: parent
+            color: JamiQmlUtils.mainViewRectObj ? JamiQmlUtils.mainViewRectObj.baseColor : JamiTheme.globalBackgroundColor
+            visible: root.inCallView
+        }
+        Connections {
+            target: CallAdapter
+
+            property CallEndedWithErrorPopup popup: CallEndedWithErrorPopup {
+                id: callEndedWithErrorPopup
+            }
+
+            function onCallEndedWithError(errorCode) {
+                popup.showSIPCallStatusError(errorCode);
+            }
+        }
+
+        BackgroundGradient {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: JamiTheme.qwkTitleBarHeight + JamiTheme.sidePanelIslandsPadding * 2
+            z: chatView.z + 1
+        }
+
+        Item {
+            anchors.top: parent.top
+            anchors.topMargin: JamiTheme.sidePanelIslandsPadding
+            anchors.left: parent.left
+            anchors.leftMargin: Qt.platform.os === "osx" && viewCoordinator.isInSinglePaneMode ? layoutManager.qwkSystemButtonSpacing.left : JamiTheme.sidePanelIslandsPadding
+            anchors.right: viewCoordinator.isInSinglePaneMode ? parent.right : extrasButtons.left
+            anchors.rightMargin: viewCoordinator.isInSinglePaneMode ? Qt.platform.os === "osx" ? JamiTheme.sidePanelIslandsPadding : layoutManager.qwkSystemButtonSpacing.right : JamiTheme.sidePanelIslandsPadding
+
+            height: JamiTheme.qwkTitleBarHeight
+            z: chatView.z + 2
+
+            ChatViewHeader {
+                id: chatViewHeader
+
+                convContext: root.convContext
+
+                transform: Translate {
+                    id: chatViewHeaderTranslate
+                    y: 0
+                }
+
+                states: [
+                    State {
+                        name: "chatViewVisible"
+                        when: viewCoordinator.currentView && viewCoordinator.currentView.objectName === "ConversationView"
+                        PropertyChanges {
+                            target: chatViewHeaderTranslate
+                            y: 0
+                        }
+                    },
+                    State {
+                        name: "welcomePageVisible"
+                        when: viewCoordinator.currentView && viewCoordinator.currentView.objectName === "WelcomePage"
+                        PropertyChanges {
+                            target: chatViewHeaderTranslate
+                            y: -(chatViewHeader.height + chatViewHeader.parent.anchors.topMargin)
+                        }
+                    }
+                ]
+
+                transitions: [
+                    Transition {
+                        from: "chatViewVisible"
+                        to: "welcomePageVisible"
+                        NumberAnimation {
+                            target: chatViewHeaderTranslate
+                            property: "y"
+                            duration: JamiTheme.longFadeDuration
+                            easing.type: Easing.InOutQuad
+                        }
+                    },
+                    Transition {
+                        from: "welcomePageVisible"
+                        to: "chatViewVisible"
+                        NumberAnimation {
+                            target: chatViewHeaderTranslate
+                            property: "y"
+                            duration: JamiTheme.longFadeDuration
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                ]
+
+                objectName: "chatViewHeader"
+
+                anchors.centerIn: parent
+                width: Math.min(implicitWidth, parent.width)
+                height: JamiTheme.qwkTitleBarHeight
+
+                DropArea {
+                    anchors.fill: parent
+                    onDropped: chatViewFooter.setFilePathsToSend(drop.urls)
+                }
+
+                onBackClicked: root.dismiss()
+
+                Connections {
+                    target: convContext
+
+                    function onIdChanged() {
+                        extrasPanel.closePanel();
+                        if (!chatViewHeader.detailsButtonVisibility) {
+                            extrasPanel.closePanel();
+                        } else if (width < JamiTheme.mainViewMinWidth + extrasPanel.width) {
+                            extrasPanel.closePanel();
+                        } else if (!chatViewHeader.interactionButtonsVisibility) {
+                            extrasPanel.closePanel();
+                        }
+                    }
+
+                    function onNeedsHost() {
+                        if (typeof viewCoordinator !== "undefined")
+                            viewCoordinator.presentDialog(appWindow, "mainview/components/HostPopup.qml");
+                    }
+                }
+            }
+        }
+
+        Row {
+            id: extrasButtons
+
+            anchors.top: viewCoordinator.isInSinglePaneMode ? undefined : parent.top
+            anchors.right: viewCoordinator.isInSinglePaneMode ? undefined : parent.right
+            anchors.rightMargin: layoutManager.qwkSystemButtonSpacing.right + JamiTheme.sidePanelIslandsPadding
+
+            height: JamiTheme.qwkTitleBarHeight
+            Layout.preferredHeight: JamiTheme.qwkTitleBarHeight
+            z: chatView.z + 2
+
+            spacing: 8
+
+            states: [
+                State {
+                    name: "singlePaneMode"
+                    when: viewCoordinator.isInSinglePaneMode
+                    ParentChange { target: extrasButtons; parent: chatViewHeader.contentItemRowLayout }
+                },
+                State {
+                    name: "multiPaneMode"
+                    when: !viewCoordinator.isInSinglePaneMode
+                    ParentChange { target: extrasButtons; parent: container }
+                }
+            ]
+
+            NewIconButton {
+                id: inviteMembersButton
+                QWKSetParentHitTestVisible {}
+
+                anchors.verticalCenter: parent.verticalCenter
+
+                iconSize: JamiTheme.iconButtonMedium
+                iconSource: JamiResources.add_people_24dp_svg
+                toolTipText: JamiStrings.inviteMembers
+
+                checkable: true
+                checked: extrasPanel.isOpen(ChatView.AddMemberPanel)
+
+                visible: interactionButtonsVisibility && addMemberVisibility
+
+                onClicked: extrasPanel.switchToPanel(ChatView.AddMemberPanel)
+            }
+
+            NewIconButton {
+                id: selectExtensionsButton
+                QWKSetParentHitTestVisible {}
+
+                anchors.verticalCenter: parent.verticalCenter
+
+                iconSize: JamiTheme.iconButtonMedium
+                iconSource: JamiResources.plugins_24dp_svg
+                toolTipText: JamiStrings.showExtensions
+
+                visible: LRCInstance.chatHandlersListCount && interactionButtonsVisibility
+
+                onClicked: {
+                    // Create plugin handler picker - PLUGINS
+                    PluginHandlerPickerCreation.createPluginHandlerPickerObjects(root, false);
+                    PluginHandlerPickerCreation.calculateCurrentGeo(root.width / 2, root.height / 2);
+                    PluginHandlerPickerCreation.openPluginHandlerPicker();
+                }
+            }
+
+            NewIconButton {
+                id: searchMessagesButton
+                QWKSetParentHitTestVisible {}
+
+                objectName: "searchMessagesButton"
+
+                anchors.verticalCenter: parent.verticalCenter
+
+                iconSize: JamiTheme.iconButtonMedium
+                iconSource: JamiResources.baseline_search_24dp_svg
+                toolTipText: JamiStrings.search
+
+                checkable: true
+                checked: extrasPanel.isOpen(ChatView.MessagesResearchPanel)
+
+                visible: root.swarmDetailsVisibility
+
+                onClicked: extrasPanel.switchToPanel(ChatView.MessagesResearchPanel)
+
+                Shortcut {
+                    sequence: "Ctrl+Shift+F"
+                    context: Qt.ApplicationShortcut
+                    enabled: searchMessagesButton.visible
+                    onActivated: extrasPanel.switchToPanel(ChatView.MessagesResearchPanel)
+                }
+            }
+
+            NewIconButton {
+                id: detailsButton
+                QWKSetParentHitTestVisible {}
+
+                objectName: "detailsButton"
+
+                anchors.verticalCenter: parent.verticalCenter
+
+                iconSize: JamiTheme.iconButtonMedium
+                iconSource: JamiResources.swarm_details_panel_24dp_svg
+                toolTipText: JamiStrings.details
+
+                checkable: true
+                checked: extrasPanel.isOpen(ChatView.SwarmDetailsPanel)
+
+                visible: (swarmDetailsVisibility || LRCInstance.currentAccountType === Profile.Type.SIP)
+
+                onClicked: extrasPanel.switchToPanel(ChatView.SwarmDetailsPanel)
+            }
+        }
+
+        ColumnLayout {
+            id: chatView
+            anchors.fill: parent
+
+            spacing: 0
+
+            Connections {
+                target: convContext
+                enabled: true
+
+                function onActiveCallsChanged() {
+                    if (convContext.activeCalls.length > 0)
+                        // temp update calldropdownmenu
+                    {
+                    }
+                }
+
+                function onErrorsChanged() {
+                    if (convContext.errors.length > 0) {
+                        errorRect.errorLabel.text = convContext.errors[0];
+                        errorRect.backendErrorToolTip.text = JamiStrings.backendError.arg(convContext.backendErrors[0]);
+                    }
+                    errorRect.visible = convContext.errors.length > 0; // If too much noise: && LRCInstance.debugMode()
+                }
+            }
+
+            Connections {
+                target: convContext
+                enabled: LRCInstance.debugMode()
+
+                function onErrorsChanged() {
+                    if (convContext.errors.length > 0) {
+                        errorRect.errorLabel.text = convContext.errors[0];
+                        errorRect.backendErrorToolTip.text = JamiStrings.backendError.arg(convContext.backendErrors[0]);
+                    }
+                    errorRect.visible = convContext.errors.length > 0;
+                }
+            }
+
+            ConversationErrorsRow {
+                id: errorRect
+                convContext: root.convContext
+                Layout.fillWidth: true
+                Layout.preferredHeight: JamiTheme.qwkTitleBarHeight
+                visible: false
+            }
+
+            JamiSplitView {
+                id: chatViewSplitView
+                objectName: "ChatViewSplitView"
+
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                handleOnMinor: true
+
+                handleOffset: JamiTheme.sidePanelIslandsPadding
+
+                property real previousWidth: width
+                onWidthChanged: {
+                    resolvePanes();
+                    // Track the previous width of the split view.
+                    previousWidth = width;
+                }
+
+                // Track the previous width of the split view.
+                property real extrasPanelWidth: extrasPanel.width
+                // The previousExtrasPanelWidth is initialized to the minimum width
+                // of the extras panel. The value is updated within the "open"-state
+                // range of the panel (e.g. not 0 or maximized).
+                property real previousExtrasPanelWidth: JamiTheme.extrasPanelMinWidth
+                onExtrasPanelWidthChanged: {
+                    resolvePanes();
+                    // This range should ensure that the panel won't restore to maximized.
+                    if (extrasPanelWidth !== 0 && extrasPanelWidth !== this.width) {
+                        console.debug("Saving previous extras panel width: %1".arg(extrasPanelWidth));
+                        previousExtrasPanelWidth = extrasPanelWidth;
+                    }
+                }
+
+                // Respond to visibility changes for the extras panel in order to
+                // determine the structure of the split view.
+                property bool extrasPanelVisible: extrasPanel.visible
+                onExtrasPanelVisibleChanged: {
+                    if (extrasPanelVisible) {
+                        extrasPanelWidth = previousExtrasPanelWidth;
+                    } else {
+                        previousExtrasPanelWidth = extrasPanelWidth;
+                    }
+                    resolvePanes();
+                }
+
+                function resolvePanes(force = false) {
+                    if (typeof viewNode !== "undefined" && !viewNode.visible) {
+                        return;
+                    }
+
+                    // If the details panel is not visible, then show the chatContents.
+                    if (!extrasPanel.visible) {
+                        chatContents.visible = true;
+                        return;
+                    }
+                    const isExpanding = width > previousWidth;
+
+                    // Provide a detailed log here, as this function seems problematic.
+                    const maximizePredicate = (!isExpanding || force) && chatContents.visible;
+                    const minimizePredicate = (isExpanding || force) && !chatContents.visible;
+                    const mainViewMinWidth = JamiTheme.mainViewMajorPaneMinWidth;
+
+                    // If the SplitView is not wide enough to show both the chatContents
+                    // and the details panel, then hide the chatContents.
+                    if (maximizePredicate && width < mainViewMinWidth + extrasPanelWidth) {
+                        chatContents.visible = false;
+                    } else if (minimizePredicate && width >= mainViewMinWidth + previousExtrasPanelWidth) {
+                        chatContents.visible = true;
+                    }
+                }
+
+                ColumnLayout {
+                    id: chatContents
+                    property bool isMinorPane: true
+                    SplitView.maximumWidth: root.width
+                    SplitView.minimumWidth: JamiTheme.mainViewMajorPaneMinWidth
+                    SplitView.fillWidth: true
+                    spacing: 0
+
+                    StackLayout {
+                        id: chatViewStack
+
+                        LayoutMirroring.enabled: false
+                        LayoutMirroring.childrenInherit: true
+
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.topMargin: JamiTheme.chatViewHairLineSize
+                        Layout.bottomMargin: JamiTheme.chatViewHairLineSize
+                        Layout.leftMargin: JamiTheme.chatviewMargin
+                        Layout.rightMargin: JamiTheme.chatviewMargin
+
+                        currentIndex: convContext.isRequest || convContext.needsSyncing
+
+                        Loader {
+                            id: loader
+                            active: convContext.id !== ""
+                            sourceComponent: MessageListView {
+                                DropArea {
+                                    anchors.fill: parent
+                                    onDropped: function (drop) {
+                                        chatViewFooter.setFilePathsToSend(drop.urls);
+                                    }
+                                }
+                            }
+                        }
+
+                        InvitationView {
+                            id: invitationView
+
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+                    }
+
+                    UpdateToSwarm {
+                        visible: !convContext.isSwarm && !convContext.isTemporary && CurrentAccount.type === Profile.Type.JAMI
+                        Layout.fillWidth: true
+                    }
+
+                    ChatViewFooter {
+                        id: chatViewFooter
+                        objectName: "chatViewFooter"
+                        convContext: root.convContext
+
+                        visible: {
+                            if (CurrentAccount.type === Profile.Type.SIP)
+                                return true;
+                            if (convContext.isBanned)
+                                return false;
+                            else if (convContext.needsSyncing)
+                                return false;
+                            else if (convContext.isRequest)
+                                return false;
+                            else if (isConversationEndedFlag)
+                                return false;
+                            return convContext.isSwarm || convContext.isTemporary;
+                        }
+
+                        onHeightChanged: {
+                            if (loader.item)
+                                Qt.callLater(loader.item.scrollToBottom);
+                        }
+
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: implicitHeight
+                        Layout.maximumHeight: JamiTheme.chatViewFooterMaximumHeight
+
+                        DropArea {
+                            anchors.fill: parent
+                            onDropped: chatViewFooter.setFilePathsToSend(drop.urls)
+                        }
+                    }
+                }
+
+                ConversationExtrasPanel {
+                    id: extrasPanel
+                    property bool isMinorPane: false
+
+                    SplitView.maximumWidth: root.width
+                    SplitView.minimumWidth: JamiTheme.extrasPanelMinWidth
+                    SplitView.preferredWidth: JamiTheme.extrasPanelMinWidth
+                }
+            }
+
+            Control {
+                id: conversationEndedBanner
+                Layout.fillWidth: true
+                Layout.bottomMargin: JamiTheme.sidePanelIslandsPadding * 2
+                visible: isConversationEndedFlag
+
+                padding: 10
+                background: Rectangle {
+                    color: JamiTheme.infoRectangleColor
+                    radius: height / 2
+                }
+                contentItem: RowLayout {
+                    spacing: 8
+                    Label {
+                        text: JamiStrings.conversationEnded
+                        color: JamiTheme.textColor
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+        }
+    }
+}

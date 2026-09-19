@@ -1,0 +1,223 @@
+/*
+ * Copyright (C) 2021-2026 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "globaltestenvironment.h"
+#include "utilsadapter.h"
+
+/*!
+ * Test fixture for AccountAdapter testing
+ */
+class AccountFixture : public ::testing::Test
+{
+public:
+    // Prepare unit test context. Called at
+    // prior each unit test execution
+    void SetUp() override {}
+
+    // Close unit test context. Called
+    // after each unit test ending
+    void TearDown() override {}
+};
+
+/*!
+ * WHEN  There is no account initially.
+ * THEN  Account list should be empty.
+ */
+TEST_F(AccountFixture, InitialAccountListCheck)
+{
+    auto accountListSize = globalEnv.lrcInstance->accountModel().getAccountCount();
+
+    ASSERT_EQ(accountListSize, 0);
+}
+
+/*!
+ * WHEN  Account data is requested for an unknown account id.
+ * THEN  The account model reports that the account is unavailable.
+ */
+TEST_F(AccountFixture, UnknownAccountIsNotAvailable)
+{
+    EXPECT_FALSE(globalEnv.lrcInstance->accountModel().hasAccount("missing-account-id"));
+}
+
+/*!
+ * WHEN  Bot owner is requested for an unknown account id.
+ * THEN  The helper returns an empty owner without throwing.
+ */
+TEST_F(AccountFixture, UnknownAccountHasNoBotOwner)
+{
+    UtilsAdapter utilsAdapter(globalEnv.settingsManager.data(),
+                              globalEnv.systemTray.data(),
+                              globalEnv.lrcInstance.data());
+
+    EXPECT_TRUE(utilsAdapter.getBotOwner("missing-account-id").isEmpty());
+}
+
+/*!
+ * WHEN  An SIP account is created.
+ * THEN  The size of the account list should be one.
+ */
+TEST_F(AccountFixture, CreateSIPAccountTest)
+{
+    // AccountAdded signal spy
+    QSignalSpy accountAddedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountAdded);
+
+    // Create SIP Acc
+    globalEnv.accountAdapter->createSIPAccount(QVariantMap());
+
+    accountAddedSpy.wait();
+    EXPECT_EQ(accountAddedSpy.count(), 1);
+
+    QList<QVariant> accountAddedArguments = accountAddedSpy.takeFirst();
+    EXPECT_TRUE(accountAddedArguments.at(0).typeId() == qMetaTypeId<QString>());
+
+    // Select the created account
+    globalEnv.lrcInstance->set_currentAccountId(accountAddedArguments.at(0).toString());
+
+    auto accountListSize = globalEnv.lrcInstance->accountModel().getAccountCount();
+    ASSERT_EQ(accountListSize, 1);
+
+    // Make sure the account setup is done
+    QSignalSpy accountStatusChangedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountStatusChanged);
+
+    accountStatusChangedSpy.wait();
+    EXPECT_GE(accountStatusChangedSpy.count(), 1);
+
+    // Remove the account
+    QSignalSpy accountRemovedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountRemoved);
+
+    globalEnv.lrcInstance->accountModel().removeAccount(globalEnv.lrcInstance->get_currentAccountId());
+
+    accountRemovedSpy.wait();
+    EXPECT_EQ(accountRemovedSpy.count(), 1);
+
+    accountListSize = globalEnv.lrcInstance->accountModel().getAccountCount();
+    ASSERT_EQ(accountListSize, 0);
+}
+/*!
+ * WHEN  A bot account is created from an existing account.
+ * THEN  The current account should stay on the creator account.
+ */
+TEST_F(AccountFixture, CreateBotAccountKeepsCreatorAsCurrentAccount)
+{
+    QSignalSpy accountAddedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountAdded);
+
+    globalEnv.accountAdapter->createSIPAccount(QVariantMap());
+
+    ASSERT_TRUE(accountAddedSpy.wait());
+    ASSERT_EQ(accountAddedSpy.count(), 1);
+
+    const auto creatorAccountId = accountAddedSpy.takeFirst().at(0).toString();
+    globalEnv.lrcInstance->set_currentAccountId(creatorAccountId);
+
+    QSignalSpy accountAdapterAddedSpy(globalEnv.accountAdapter.get(), &AccountAdapter::accountAdded);
+
+    QVariantMap botSettings;
+    botSettings["alias"] = "Bot account";
+    botSettings["registeredName"] = "";
+    botSettings["password"] = "";
+    botSettings["archivePath"] = "";
+    botSettings["avatar"] = "";
+    botSettings["botOwner"] = "jami:" + creatorAccountId;
+
+    globalEnv.accountAdapter->createJamiAccount(botSettings);
+
+    ASSERT_TRUE(accountAdapterAddedSpy.wait());
+    ASSERT_EQ(accountAdapterAddedSpy.count(), 1);
+
+    const auto botAccountId = accountAdapterAddedSpy.takeFirst().at(0).toString();
+    EXPECT_NE(botAccountId, creatorAccountId);
+    EXPECT_EQ(globalEnv.lrcInstance->get_currentAccountId(), creatorAccountId);
+
+    globalEnv.lrcInstance->accountModel().removeAccount(botAccountId);
+    globalEnv.lrcInstance->accountModel().removeAccount(creatorAccountId);
+
+    QTRY_COMPARE(globalEnv.lrcInstance->accountModel().getAccountCount(), 0);
+}
+
+/*!
+ * WHEN  Current account is deleted through AccountAdapter.
+ * THEN  All API tokens for that account are revoked.
+ */
+TEST_F(AccountFixture, DeleteCurrentAccountRevokesAllApiTokens)
+{
+    QSignalSpy accountAddedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountAdded);
+
+    globalEnv.accountAdapter->createSIPAccount(QVariantMap());
+
+    accountAddedSpy.wait();
+    ASSERT_EQ(accountAddedSpy.count(), 1);
+
+    const auto accountId = accountAddedSpy.takeFirst().at(0).toString();
+    globalEnv.lrcInstance->set_currentAccountId(accountId);
+
+    auto firstToken = globalEnv.apiTokenManager->createToken(accountId, "token-a");
+    auto secondToken = globalEnv.apiTokenManager->createToken(accountId, "token-b");
+
+    ASSERT_EQ(globalEnv.apiTokenManager->listTokens(accountId).size(), 2);
+    ASSERT_NE(globalEnv.apiTokenManager->validateToken(firstToken.rawToken), nullptr);
+    ASSERT_NE(globalEnv.apiTokenManager->validateToken(secondToken.rawToken), nullptr);
+
+    QSignalSpy accountRemovedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountRemoved);
+
+    globalEnv.accountAdapter->deleteCurrentAccount();
+
+    accountRemovedSpy.wait();
+    ASSERT_EQ(accountRemovedSpy.count(), 1);
+
+    EXPECT_EQ(globalEnv.apiTokenManager->listTokens(accountId).size(), 0);
+    EXPECT_EQ(globalEnv.apiTokenManager->validateToken(firstToken.rawToken), nullptr);
+    EXPECT_EQ(globalEnv.apiTokenManager->validateToken(secondToken.rawToken), nullptr);
+}
+
+/*!
+ * WHEN  The AccountAdapter that called deleteCurrentAccount() is destroyed before the
+ *       asynchronous accountRemoved signal fires (e.g. a QML engine/singleton torn down
+ *       mid-teardown, as happens between QML test files).
+ * THEN  The pending one-shot callback must not run against the destroyed adapter. It
+ *       previously captured a raw `this` with no lifetime-bound context, so the callback
+ *       fired against freed memory and crashed reading apiTokenManager_.
+ */
+TEST_F(AccountFixture, DeleteCurrentAccountSurvivesAdapterDestroyedBeforeSignal)
+{
+    QSignalSpy accountAddedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountAdded);
+
+    globalEnv.accountAdapter->createSIPAccount(QVariantMap());
+
+    accountAddedSpy.wait();
+    ASSERT_EQ(accountAddedSpy.count(), 1);
+
+    const auto accountId = accountAddedSpy.takeFirst().at(0).toString();
+    globalEnv.lrcInstance->set_currentAccountId(accountId);
+
+    QSignalSpy accountRemovedSpy(&globalEnv.lrcInstance->accountModel(), &AccountModel::accountRemoved);
+
+    {
+        // Scoped adapter mirrors a QML-engine-owned singleton: it outlives the call that
+        // triggers the async removal, but not the wait for the removal to complete.
+        AccountAdapter scopedAdapter(globalEnv.settingsManager.get(),
+                                     globalEnv.apiTokenManager.get(),
+                                     globalEnv.systemTray.get(),
+                                     globalEnv.lrcInstance.data());
+        scopedAdapter.deleteCurrentAccount();
+    }
+    // scopedAdapter is now destroyed; the real accountRemoved signal has not fired yet.
+
+    // This must not crash: the pending one-shot connection should have been severed
+    // when scopedAdapter was destroyed, instead of firing against freed memory.
+    ASSERT_TRUE(accountRemovedSpy.wait());
+    EXPECT_EQ(accountRemovedSpy.count(), 1);
+}

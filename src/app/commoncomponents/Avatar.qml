@@ -1,0 +1,115 @@
+/*
+ * Copyright (C) 2020-2026 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
+import net.jami.Adapters 1.1
+import net.jami.Constants 1.1
+import net.jami.Helpers 1.1
+
+Item {
+    id: root
+
+    enum Mode {
+        Account,
+        Contact,
+        Conversation,
+        TemporaryAccount
+    }
+    property int mode: Avatar.Mode.Account
+    property alias sourceSize: image.sourceSize
+
+    property string imageId
+
+    readonly property string divider: '_'
+    readonly property string baseProviderPrefix: 'image://avatarimage'
+    property string typePrefix: {
+        switch (mode) {
+        case Avatar.Mode.Account:
+            return 'account';
+        case Avatar.Mode.Contact:
+            return 'contact';
+        case Avatar.Mode.Conversation:
+            return 'conversation';
+        case Avatar.Mode.TemporaryAccount:
+            return 'temporaryAccount';
+        }
+    }
+
+    property alias presenceStatus: presenceIndicator.status
+    property bool showPresenceIndicator: true
+    property alias fillMode: image.fillMode
+
+    onImageIdChanged: image.updateSource()
+
+    Connections {
+        target: AvatarRegistry
+
+        function onAvatarUidChanged(id) {
+            // filter this id only
+            if (id !== root.imageId)
+                return;
+
+            // get the updated uid forcing a new requestImage
+            // call to the image provider
+            image.updateSource();
+        }
+    }
+
+    Connections {
+        target: CurrentScreenInfo
+
+        function onDevicePixelRatioChanged() {
+            image.updateSource();
+        }
+    }
+
+    Image {
+        id: image
+
+        anchors.fill: root
+
+        sourceSize.width: Math.max(24, width) * CurrentScreenInfo.devicePixelRatio
+        sourceSize.height: Math.max(24, height) * CurrentScreenInfo.devicePixelRatio
+
+        smooth: true
+        antialiasing: true
+        asynchronous: false
+
+        fillMode: Image.PreserveAspectFit
+
+        function updateSource() {
+            if (!imageId)
+                return;
+            source = baseProviderPrefix + '/' + typePrefix + divider + imageId + divider + AvatarRegistry.getUid(imageId);
+        }
+    }
+
+    PresenceIndicator {
+        id: presenceIndicator
+
+        anchors.right: root.right
+        anchors.rightMargin: -1
+        anchors.bottom: root.bottom
+        anchors.bottomMargin: -1
+
+        size: root.width * JamiTheme.avatarPresenceRatio
+
+        visible: showPresenceIndicator
+    }
+}

@@ -1,0 +1,136 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND noninteractive
+ENV QT_QUICK_BACKEND software
+ENV QT_QPA_PLATFORM offscreen
+ENV QT_OPENGL software
+ENV QSG_RHI_BACKEND software
+ENV QTWEBENGINE_CHROMIUM_FLAGS "--disable-gpu --disable-software-rasterizer --disable-dev-shm-usage"
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
+# Use only the custom Savoir-faire Linux Ubuntu mirror
+RUN rm -f /etc/apt/sources.list /etc/apt/sources.list.d/* /var/lib/apt/lists/* && \
+    echo "deb http://gpl.savoirfairelinux.net/pub/mirrors/ubuntu noble main restricted universe multiverse" > /etc/apt/sources.list && \
+    echo "deb http://gpl.savoirfairelinux.net/pub/mirrors/ubuntu noble-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb http://gpl.savoirfairelinux.net/pub/mirrors/ubuntu noble-security main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb http://security.ubuntu.com/ubuntu noble-security main restricted universe multiverse" >> /etc/apt/sources.list
+
+# Locale and certificates
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    locales && \
+    locale-gen en_US.UTF-8 fr_FR.UTF-8
+
+# Development dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    devscripts \
+    equivs \
+    gnupg \
+    dirmngr \
+    curl
+
+# Libqt-jami
+RUN curl -s https://dl.jami.net/public-key.gpg | tee /usr/share/keyrings/jami-archive-keyring.gpg > /dev/null
+RUN sh -c "echo 'deb [signed-by=/usr/share/keyrings/jami-archive-keyring.gpg] https://dl.jami.net/internal/ubuntu_24.04/ jami main' > /etc/apt/sources.list.d/jami.list"
+RUN apt-get update && apt-get install libqt-jami -y
+
+# Build dependencies
+# ponytail: update must be in the same layer as install, otherwise Docker's
+# cached index (from the libqt-jami RUN above) can drift from the mirror's
+# actual current package versions between successive builds on the same
+# node, causing "unmet dependencies" apt errors.
+RUN apt-get update && apt-get install -y -o Acquire::Retries=10 \
+    python3 \
+    git \
+    autoconf \
+    automake \
+    autopoint \
+    cmake \
+    meson \
+    libtool \
+    dbus-x11 \
+    libdbus-1-dev \
+    libsystemd-dev \
+    libargon2-dev \
+    libcanberra-gtk3-dev \
+    libclutter-gtk-1.0-dev \
+    libclutter-1.0-dev \
+    libglib2.0-dev \
+    libnotify-dev \
+    yasm \
+    nasm \
+    autotools-dev \
+    gettext \
+    libpulse-dev \
+    libasound2-dev \
+    libexpat1-dev \
+    libpcre3-dev \
+    libyaml-cpp-dev \
+    libxcb-shape0-dev \
+    libxcb-xfixes0-dev \
+    libboost-dev \
+    libxext-dev \
+    libxfixes-dev \
+    libspeex-dev \
+    libspeexdsp-dev \
+    uuid-dev \
+    libavcodec-dev \
+    libavutil-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libavdevice-dev \
+    libopus-dev \
+    libpipewire-0.3-dev \
+    libudev-dev \
+    libgsm1-dev \
+    libjsoncpp-dev \
+    libmsgpack-cxx-dev \
+    libnatpmp-dev \
+    libsecp256k1-dev \
+    libasio-dev \
+    libfmt-dev \
+    libgmp-dev \
+    libgnutls28-dev \
+    nettle-dev \
+    libarchive-dev \
+    libsdbus-c++-dev \
+    libhttp-parser-dev \
+    libwebrtc-audio-processing-dev \
+    libsystemd-dev \
+    libupnp-dev \
+    libvpx-dev \
+    libx264-dev \
+    libappindicator3-dev \
+    libqrencode-dev \
+    libnm-dev \
+    libnss3-dev \
+    libcrypto++-dev \
+    libva-dev \
+    libvdpau-dev \
+    libssl-dev \
+    libvulkan-dev \
+    libxcomposite-dev \
+    libxdamage-dev \
+    libxkbfile-dev \
+    libxtst-dev \
+    xvfb \
+    xauth \
+    libgl1-mesa-dri \
+    libglx-mesa0
+
+# Testing dependencies
+RUN apt-get install -y pandoc \
+    libcppunit-dev \
+    googletest \
+    libgtest-dev \
+    wget && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/var/cache/cargo \
+    PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ADD extras/scripts/install-rust-toolchain.sh /opt/install-rust-toolchain.sh
+RUN sh /opt/install-rust-toolchain.sh

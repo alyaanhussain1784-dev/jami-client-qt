@@ -1,0 +1,255 @@
+/*
+ * Copyright (C) 2020-2026 Savoir-faire Linux Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+
+import net.jami.Constants 1.1
+import net.jami.Adapters 1.1
+import "../../commoncomponents"
+
+BaseModalDialog {
+    id: root
+
+    property string convId
+    property string aliasText
+    property string registeredNameText
+    property string idText
+
+    property int preferredImgSize: 80
+
+    titleText: JamiStrings.contactDetails
+
+    popupContent: Control {
+        padding: 10
+
+        contentItem: ColumnLayout {
+            id: userProfileDialogLayout
+
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: qrImageBackground.height
+
+                spacing: 10
+
+                Avatar {
+                    id: contactImage
+
+                    Layout.preferredWidth: preferredImgSize
+                    Layout.preferredHeight: preferredImgSize
+
+                    imageId: convId !== "" ? convId : idText
+                    showPresenceIndicator: false
+                    mode: convId !== "" ? Avatar.Mode.Conversation : Avatar.Mode.Contact
+                }
+
+                ColumnLayout {
+                    spacing: 10
+                    Layout.alignment: Qt.AlignLeft
+
+                    Text {
+                        id: contactAlias
+
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignLeft
+
+                        text: textMetricsContactAliasText.elidedText
+                        color: JamiTheme.textColor
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+
+                        font.pointSize: JamiTheme.settingsFontSize
+                        font.kerning: true
+
+                        visible: true
+                    }
+
+                    TextMetrics {
+                        id: textMetricsContactAliasText
+                        font: contactAlias.font
+                        text: aliasText
+                        elideWidth: userProfileDialogLayout.width - qrImageBackground.width - 100
+                        elide: Qt.ElideRight
+                    }
+
+                    // Visible when user name is not empty or equals to id.
+                    TextEdit {
+                        id: contactDisplayName
+
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignLeft
+
+                        text: textMetricsContactDisplayNameText.elidedText
+                        color: JamiTheme.faddedFontColor
+                        wrapMode: Text.NoWrap
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+
+                        font.pointSize: JamiTheme.textFontSize
+                        font.kerning: true
+
+                        selectByMouse: true
+                        readOnly: true
+
+                        visible: registeredNameText ? (registeredNameText === aliasText ? false : true) : false
+
+                        LineEditContextMenu {
+                            id: displayNameContextMenu
+                            lineEditObj: contactDisplayName
+                            selectOnly: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.RightButton
+                            cursorShape: Qt.IBeamCursor
+                            onClicked: function (mouse) {
+                                displayNameContextMenu.openMenuAt(mouse);
+                            }
+                        }
+
+                        TextMetrics {
+                            id: textMetricsContactDisplayNameText
+
+                            text: registeredNameText
+                            font: contactDisplayName.font
+                            elideWidth: root.width - 200
+                            elide: Qt.ElideMiddle
+                        }
+                    }
+                }
+
+                Rectangle {
+                    id: qrImageBackground
+
+                    width: 90
+                    height: 90
+
+                    radius: 5
+
+                    Image {
+                        id: contactQrImage
+
+                        anchors.centerIn: parent
+
+                        horizontalAlignment: Image.AlignRight
+                        fillMode: Image.PreserveAspectFit
+
+                        source: convId !== "" ? "image://qrImage/contact_" + convId : "image://qrImage/contact_" + idText
+                        sourceSize.width: preferredImgSize
+                        sourceSize.height: preferredImgSize
+
+                        mipmap: false
+                        smooth: false
+                    }
+                }
+            }
+
+            Control {
+                Layout.fillWidth: true
+
+                Layout.alignment: Qt.AlignHCenter
+
+                padding: 4
+
+                contentItem: RowLayout {
+                    id: idLayout
+
+                    anchors.centerIn: parent
+                    spacing: 15
+
+                    Text {
+                        id: identifierText
+
+                        font.pointSize: JamiTheme.textFontSize
+                        text: JamiStrings.identifier
+                        color: JamiTheme.faddedFontColor
+
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                        Layout.leftMargin: 10
+                    }
+
+                    TextEdit {
+                        id: contactId
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.minimumWidth: 400 - identifierText.width - copyButton.width - 2 * root.popupMargins - 35
+
+                        font.family: JamiTheme.ubuntuMonoFontFamily
+                        font.pointSize: JamiTheme.textFontSize
+                        font.kerning: true
+                        color: JamiTheme.textColor
+
+                        selectByMouse: true
+                        readOnly: true
+                        text: textMetricsContacIdText.elidedText
+
+                        LineEditContextMenu {
+                            id: idContextMenu
+                            lineEditObj: contactId
+                            selectOnly: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.RightButton
+                            cursorShape: Qt.IBeamCursor
+                            onClicked: function (mouse) {
+                                idContextMenu.openMenuAt(mouse);
+                            }
+                        }
+
+                        TextMetrics {
+                            id: textMetricsContacIdText
+                            font: contactDisplayName.font
+                            text: idText
+                            elideWidth: root.width - identifierText.width - 2 * root.popupMargins - 60
+                            elide: Qt.ElideMiddle
+                        }
+
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    NewIconButton {
+                        id: copyButton
+
+                        iconSize: JamiTheme.iconButtonSmall
+                        iconSource: JamiResources.content_copy_24dp_svg
+                        toolTipText: JamiStrings.copy
+
+                        onClicked: {
+                            UtilsAdapter.setClipboardText(idText);
+                        }
+                    }
+                }
+
+                background: Rectangle {
+                    color: JamiTheme.globalIslandColor
+                    radius: 5
+                }
+            }
+        }
+
+        background: Rectangle {
+            radius: 5
+            color: JamiTheme.globalBackgroundColor
+        }
+    }
+}

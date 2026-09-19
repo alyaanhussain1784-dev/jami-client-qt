@@ -1,0 +1,759 @@
+/*
+ * Copyright (C) 2017-2026 Savoir-faire Linux Inc.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "typedefs.h"
+
+#include "api/conversation.h"
+#include "api/contact.h"
+#include "api/profile.h"
+#include "api/datatransfer.h"
+#include "containerview.h"
+
+#include <QAbstractListModel>
+#include <QVector>
+#include <QMap>
+
+#include <functional>
+#include <memory>
+#include <deque>
+
+class QTimer;
+
+namespace lrc {
+
+class CallbacksHandler;
+class ConversationModelPrivate;
+class Database;
+
+namespace api {
+Q_NAMESPACE
+Q_CLASSINFO("RegisterEnumClassesUnscoped", "false")
+
+namespace account {
+struct Info;
+}
+namespace interaction {
+struct Info;
+}
+
+class Lrc;
+class BehaviorController;
+class AccountModel;
+
+enum class ConferenceableItem { CALL, CONTACT };
+Q_ENUM_NS(ConferenceableItem)
+
+enum class FilterType { INVALID = -1, JAMI, SIP, REQUEST, COUNT__ };
+Q_ENUM_NS(FilterType)
+
+struct AccountConversation
+{
+    QString convId;
+    QString accountId;
+};
+
+/*
+ * vector of conversationId and accountId.
+ * for calls and contacts contain only one element
+ * for conferences contains multiple entries
+ */
+typedef QVector<QVector<AccountConversation>> ConferenceableValue;
+
+namespace ConversationList {
+Q_NAMESPACE
+enum Role {
+    DummyRole = Qt::UserRole + 1,
+    Title,
+    BestId,
+    Presence,
+    Alias,
+    RegisteredName,
+    URI,
+    BotOwner,
+    UnreadMessagesCount,
+    LastInteractionTimeStamp,
+    LastInteraction,
+    ContactType,
+    IsSwarm,
+    IsCoreDialog,
+    IsBanned,
+    UID,
+    InCall,
+    IsAudioOnly,
+    CallStackViewShouldShow,
+    CallState,
+    SectionName,
+    AccountId,
+    ActiveCallsCount,
+    Draft,
+    IsRequest,
+    Mode,
+    Uris,
+    Monikers,
+    FilterTitle,
+};
+Q_ENUM_NS(Role)
+} // namespace ConversationList
+
+using DraftProvider = std::function<QString(const QString& convUid, const QString& accountId)>;
+
+/**
+ *  @brief Class that manages conversation information.
+ */
+class LIB_EXPORT ConversationModel : public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    using ConversationQueue = std::deque<conversation::Info>;
+    using ConversationQueueProxy = ContainerView<ConversationQueue>;
+
+    const account::Info& owner;
+
+    ConversationModel(const account::Info& owner,
+                      Lrc& lrc,
+                      Database& db,
+                      const CallbacksHandler& callbacksHandler,
+                      const api::BehaviorController& behaviorController);
+    ~ConversationModel();
+
+    // QAbstractListModel interface
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    QHash<int, QByteArray> roleNames() const override;
+
+    // Resolve a role for a given conversation item
+    QVariant dataForItem(const conversation::Info& item, int role) const;
+
+    // Set a callback for resolving Draft content (app-level concern)
+    void setDraftProvider(DraftProvider provider);
+
+    void initConversations();
+
+    /**
+     * Get unfiltered underlying conversation data. This is intended to
+     * serve as the underlying data for QAbstractListModel based objects.
+     * The corresponding data mutation signals will need to be responded
+     * to with appropriate QAbstractListModel signal forwarding.
+     * @return raw conversation queue
+     */
+    const ConversationQueue& getConversations() const;
+
+    /**
+     * Get conversations which should be shown client side
+     * @return conversations filtered with the current filter
+     */
+    const ConversationQueueProxy& allFilteredConversations() const;
+
+    /**
+     * Get conversation for a given uid
+     * @param uid conversation uid
+     * @return reference to conversation info with given uid
+     */
+    OptRef<conversation::Info> getConversationForUid(const QString& uid) const;
+
+    /**
+     * Get conversation for a given peer uri
+     * @param uri peer uri
+     * @return reference to conversation info with given peer uri
+     */
+    OptRef<conversation::Info> getConversationForPeerUri(const QString& uri) const;
+
+    /**
+     * Get conversation for a given call id
+     * @param callId call id
+     * @return reference to conversation info with given call id
+     */
+    OptRef<conversation::Info> getConversationForCallId(const QString& callId) const;
+
+    /**
+     * Get conversations that could be added to conference
+     * @param  current conversation id
+     * @param  search name filter
+     * @return filtered conversations
+     */
+    QMap<ConferenceableItem, ConferenceableValue> getConferenceableConversations(const QString& convId,
+                                                                                 const QString& filter = {}) const;
+    /**
+     * Get a custom filtered set of conversations
+     * @return conversations filtered
+     */
+    const ConversationQueueProxy& getFilteredConversations(const FilterType& filter = FilterType::INVALID,
+                                                           bool forceUpdate = false,
+                                                           const bool includeBanned = false) const;
+    /**
+     * Get a custom filtered set of conversations from profile type
+     * @return conversations filtered
+     */
+    const ConversationQueueProxy& getFilteredConversations(const profile::Type& profileType = profile::Type::INVALID,
+                                                           bool forceUpdate = false,
+                                                           const bool includeBanned = false) const;
+    /**
+     * Get the conversation at row in the filtered conversations
+     * @param  row
+     * @return a copy of the conversation
+     */
+    OptRef<conversation::Info> filteredConversation(unsigned row) const;
+    /**
+     * Get the search results
+     * @return a searchResult
+     */
+    const ConversationQueue& getAllSearchResults() const;
+
+    /**
+     * Get the conversation at row in the search results
+     * @param  row
+     * @return a copy of the conversation
+     */
+    OptRef<conversation::Info> searchResultForRow(unsigned row) const;
+
+    /**
+     * Update the searchResults
+     * @param new status
+     */
+    void updateSearchStatus(const QString& status) const;
+    /**
+     * Emit a filterChanged signal to force the client to refresh the filter. For instance
+     * this is required when a contact was banned or un-banned.
+     */
+    void refreshFilter();
+    /**
+     * Make permanent a temporary contact or a pending request.
+     * Ensure that given conversation is stored permanently into the system.
+     * @param uid of the conversation to change.
+     * @exception std::out_of_range if uid doesn't correspond to an existing conversation
+     */
+    void makePermanent(const QString& uid);
+    /**
+     * Remove a conversation and the contact if it's a dialog
+     * @param uid of the conversation
+     * @param banned if we want to ban the contact.
+     * @param keepContact if we want to keep the contact. New conversation could be created
+     */
+    void removeConversation(const QString& uid, bool banned = false, bool keepContact = false);
+    /**
+     * Get the action wanted by the user when they click on the conversation
+     * @param uid of the conversation
+     */
+    void selectConversation(const QString& uid) const;
+    /**
+     * Call contacts linked to this conversation
+     * @param uid of the conversation
+     */
+    void startAudioOnlyCall(const QString& uid);
+    void startCall(const QString& uid);
+    /**
+     * Perform an audio call with contacts linked to this conversation
+     * @param uid of the conversation
+     */
+    void placeAudioOnlyCall(const QString& uid);
+    void joinCall(
+        const QString& uid, const QString& confId, const QString& uri, const QString& deviceId, bool videoMuted);
+    /**
+     * Send a message to the conversation
+     * @param uid of the conversation
+     * @param body of the message
+     * @param parentId id of parent message. Default is "" - last message in conversation.
+     */
+    void sendMessage(const QString& uid, const QString& body, const QString& parentId = "");
+    /**
+     * Edit a message (empty body = delete message)
+     * @param convId        The conversation with the message to edit
+     * @param newBody       The new body
+     * @param messageId     The id of the message (MUST be by the same author & plain/text)
+     */
+    void editMessage(const QString& convId, const QString& newBody, const QString& messageId);
+    /**
+     * React to a message with an emoji
+     * @param convId        The conversation id
+     * @param emoji         The emoji
+     * @param messageId     The id of the message
+     */
+    void reactMessage(const QString& convId, const QString& emoji, const QString& messageId);
+    /**
+     * Modify the current filter (will change the result of getFilteredConversations)
+     * @param filter the new filter
+     */
+    void setFilter(const QString& filter);
+    void setFilterString(const QString& filter);
+    /**
+     * Modify the current filter (will change the result of getFilteredConversations)
+     * @param filter the new filter (example: SIP,  RING,  REQUEST)
+     */
+    void setFilter(const FilterType& filter = FilterType::INVALID);
+    /**
+     * Join participants from A to B and vice-versa.
+     * @note conversations must be in a call.
+     * @param uidA uid of the conversation A
+     * @param uidB uid of the conversation B
+     */
+    void joinConversations(const QString& uidA, const QString& uidB);
+    /**
+     * Clear the history of a conversation
+     * @param uid of the conversation
+     */
+    void clearHistory(const QString& uid);
+    /**
+     * Clears the unread text messages of a conversation
+     * @param convId, uid of the conversation
+     */
+    void clearUnreadInteractions(const QString& convId);
+    /**
+     * clear all history
+     */
+    void clearAllHistory();
+    /**
+     * @param convId
+     * @param interactionId
+     * @param participant uri
+     * @return whether the interaction is last displayed for the conversation
+     */
+    bool isLastDisplayed(const QString& convId, const QString& interactionId, const QString participant);
+    /**
+     * delete obsolete history from the database
+     * @param days, number of days from today. Below this date, interactions will be deleted
+     */
+    void deleteObsoleteHistory(int date);
+
+    void sendFile(const QString& convUid, const QString& path, const QString& filename, const QString& parent);
+
+    void acceptTransfer(const QString& convUid, const QString& interactionId);
+
+    void cancelTransfer(const QString& convUid, const QString& interactionId);
+
+    void getTransferInfo(const QString& conversationId,
+                         const QString& interactionId,
+                         api::datatransfer::Info& info) const;
+    void removeFile(const QString& conversationId, const QString& interactionId, const QString& path);
+
+    /**
+     * Starts a search of all medias in a conversation
+     */
+    void getConvMediasInfos(const QString& accountId, const QString& conversationId, const QString& text, bool isMedia);
+    /**
+     * @param convUid, uid of the conversation
+     * @return the number of unread messages for the conversation
+     */
+    int getNumberOfUnreadMessagesFor(const QString& convUid);
+    /**
+     * Send a composing status
+     * @param convUid       conversation's id
+     * @param isComposing   if is composing
+     */
+    void setIsComposing(const QString& convUid, bool isComposing);
+    /**
+     * load messages for conversation
+     * @param conversationId conversation's id
+     * @param size number of messages should be loaded. Default 1
+     * @return id for loading request. -1 if not loaded
+     */
+    int loadConversationMessages(const QString& conversationId, const int size = 1);
+    /**
+     * accept request for conversation
+     * @param conversationId conversation's id
+     */
+    void acceptConversationRequest(const QString& conversationId);
+    /**
+     * add member to conversation
+     * @param conversationId conversation's id
+     * @param memberId members's id
+     */
+    void addConversationMember(const QString& conversationId, const QString& memberId);
+    /**
+     * remove member from conversation
+     * @param conversationId conversation's id
+     * @param memberId members's id
+     */
+    void removeConversationMember(const QString& conversationId, const QString& memberId);
+    /**
+     * get conversation's info
+     * @param conversationId conversation's id
+     * @return conversation info
+     */
+    MapStringString getConversationInfos(const QString& conversationId);
+    /**
+     * get conversation's preferences
+     * @param conversationId conversation's id
+     * @return conversation preferences
+     */
+    MapStringString getConversationPreferences(const QString& conversationId);
+    /**
+     * create a new swarm conversation
+     * @param participants  conversation's participants
+     * @param infos conversation's infos
+     * @return new conversation id
+     */
+    QString createConversation(const VectorString& participants, const MapStringString& infos = {});
+    /**
+     * update conversation info
+     * @param conversationId conversation's id
+     * @param infos
+     */
+    void updateConversationInfos(const QString& conversationId, MapStringString info);
+    /**
+     * update conversation's preferences
+     * @param conversationId conversation's id
+     * @param preferences
+     */
+    void setConversationPreferences(const QString& conversationId, MapStringString preferences);
+    /**
+     * Remove first error
+     * @param conversationId
+     */
+    void popFrontError(const QString& conversationId);
+    /**
+     * Ignore an active call
+     * @param convId
+     * @param id
+     * @param uri
+     * @param device
+     */
+    void ignoreActiveCall(const QString& convId, const QString& id, const QString& uri, const QString& device);
+
+    /**
+     * @return if conversations requests exists.
+     */
+    bool hasPendingRequests() const;
+    /**
+     * @return number of conversations requests
+     */
+    int pendingRequestCount() const;
+    /**
+     * @return number of conversations requests + unread
+     */
+    int notificationsCount() const;
+    void reloadHistory();
+    const VectorString peersForConversation(const QString& conversationId) const;
+
+    // Presentation
+
+    /**
+     * Get conversation title. This means the title to show in the smartlist
+     * @param conversationId
+     * @return the title to display
+     */
+    QString title(const QString& conversationId) const;
+    /**
+     * Get conversation's description.
+     * @param conversationId
+     * @return the description to display
+     */
+    QString description(const QString& conversationId) const;
+    /**
+     * Get conversation's avatar.
+     * @param conversationId
+     * @return the avatar to display
+     */
+    QString avatar(const QString& conversationId) const;
+
+    /**
+     * Get member's role in conversation
+     * @param conversationId
+     * @param memberUri
+     * @return role
+     */
+    member::Role memberRole(const QString& conversationId, const QString& memberUri) const;
+
+Q_SIGNALS:
+
+    /**
+     * Emitted when a conversation receives a new interaction
+     * @param uid of conversation
+     * @param interactionId
+     * @param interactionInfo
+     */
+    void newInteraction(const QString& uid, QString& interactionId, const interaction::Info& interactionInfo) const;
+    /**
+     * Emitted when an interaction got removed from the conversation
+     * @param convUid conversation which owns the interaction
+     * @param interactionId
+     */
+    void interactionRemoved(const QString& convUid, const QString& interactionId) const;
+    /**
+     * Emitted when user clear the history of a conversation
+     * @param uid
+     */
+    void conversationCleared(const QString& uid) const;
+    /**
+     * Emitted when conversation's participant has been updated
+     * @param uid
+     */
+    void conversationUpdated(const QString& uid) const;
+    /**
+     * Emitted when a conversation detects an error
+     * @param uid
+     */
+    void conversationErrorsUpdated(const QString& uid) const;
+    /**
+     * Emitted when conversation's preferences has been updated
+     * @param uid
+     */
+    void conversationPreferencesUpdated(const QString& uid) const;
+    /**
+     * Emitted when conversation's profile has been updated
+     * @param uid
+     */
+    void profileUpdated(const QString& uid) const;
+    /**
+     * Emitted when the conversation list is modified
+     */
+    void modelChanged() const;
+    /**
+     * Emitted when filter has changed
+     */
+    void filterChanged() const;
+    /**
+     * Emitted when a conversation has been added
+     * @param uid
+     */
+    void newConversation(const QString& uid) const;
+    /**
+     * Emitted when a conversation has been removed
+     * @param uid
+     */
+    void conversationRemoved(const QString& uid) const;
+    /**
+     * Emitted after all history were cleared
+     * @note the client must connect this signal to know when update the view of the list
+     */
+    void allHistoryCleared() const;
+    /**
+     * Emitted at the end of slotContactAdded and at conversationReady for swarm conversation to
+     * notify that an existing conversation can be modified
+     * @param uid
+     */
+    void conversationReady(QString uid, QString participantURI) const;
+    /**
+     * Emitted when a contact in a conversation is composing a message
+     * @param uid           conversation's id
+     * @param contactUri    contact's uri
+     * @param isComposing   if contact is composing a message
+     */
+    void composingStatusChanged(const QString& uid, const QString& contactUri, bool isComposing) const;
+
+    /**
+     * Emitted when search status changed
+     * @param status
+     */
+    void searchStatusChanged(const QString& status) const;
+    /**
+     * Emitted when search result has been updated
+     */
+    void searchResultUpdated() const;
+    void searchResultEnded() const;
+    /**
+     * Emitted when finish loading messages for conversation
+     * @param loadingRequestId  loading request id
+     * @param conversationId conversation Id
+     */
+    void conversationMessagesLoaded(uint32_t loadingRequestId, const QString& conversationId) const;
+    /**
+     * Emitted when new messages available. When messages loaded from loading request or
+     * receiving/sending new interactions
+     * @param accountId  account id
+     * @param conversationId conversation Id
+     */
+    void newMessagesAvailable(const QString& accountId, const QString& conversationId) const;
+
+    /**
+     * Emitted whenever conversation's calls changed
+     */
+    void activeCallsChanged(const QString& accountId, const QString& conversationId) const;
+
+    /**
+     * Emitted when creation of conversation started, finished with success or finisfed with error
+     * @param accountId  account id
+     * @param conversationId conversation Id, when conversation creation started conversationId =
+     * participantURI
+     * @param participantURI participant uri
+     * @param status 0 -started, 1 -created with success, -1 -error
+     */
+    void creatingConversationEvent(const QString& accountId,
+                                   const QString& conversationId,
+                                   const QString& participantURI,
+                                   int status) const;
+
+    /**
+     * Emitted once a message search has been done and processed
+     * @param accountId
+     * @param messageInformation message datas
+     */
+    void messagesFoundProcessed(const QString& accountId,
+                                const QMap<QString, interaction::Info>& messageInformation) const;
+    /**
+     * Emitted once a conversation needs somebody to host the call
+     * @param callId
+     */
+    void needsHost(const QString& conversationId) const;
+
+    /**
+     * Emitted when a reaction is added to a message
+     * @param accountId
+     * @param conversationId
+     * @param messageId      The message being reacted to
+     * @param reaction       The reaction metadata (commitId, author, body, …)
+     */
+    void reactionAdded(const QString& accountId,
+                       const QString& conversationId,
+                       const QString& messageId,
+                       const MapStringString& reaction) const;
+
+    /**
+     * Emitted when a reaction is removed from a message
+     * @param accountId
+     * @param conversationId
+     * @param messageId      The message the reaction was on
+     * @param reactionId     The commit id of the removed reaction
+     */
+    void reactionRemoved(const QString& accountId,
+                         const QString& conversationId,
+                         const QString& messageId,
+                         const QString& reactionId) const;
+
+private Q_SLOTS:
+    void slotContactUpdated(const QString& uri);
+    void slotContactAdded(const QString& contactUri);
+    void slotPendingContactAccepted(const QString& uri);
+    void slotContactRemoved(const QString& uri);
+
+    void slotNewCall(const QString& fromId, const QString& callId, bool isOutgoing, const QString& toUri);
+    void slotCallStatusChanged(const QString& accountId, const QString& callId, int code);
+    void slotCallStarted(const QString& callId);
+    void slotCallEnded(const QString& callId);
+    void slotCallAddedToConference(const QString& callId, const QString& conversationId, const QString& confId);
+    void slotActiveCallsChanged(const QString& accountId,
+                                const QString& conversationId,
+                                const VectorMapStringString& activeCalls);
+
+    void slotNewAccountMessage(const QString& accountId,
+                               const QString& peerId,
+                               const QString& msgId,
+                               const MapStringString& payloads);
+    void slotIncomingCallMessage(const QString& accountId,
+                                 const QString& callId,
+                                 const QString& from,
+                                 const QString& body);
+    void slotComposingStatusChanged(const QString& accountId,
+                                    const QString& convId,
+                                    const QString& contactUri,
+                                    bool isComposing);
+
+    void slotTransferStatusCreated(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusCanceled(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusAwaitingPeer(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusAwaitingHost(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusOngoing(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusFinished(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusError(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusTimeoutExpired(const QString& fileId, datatransfer::Info info);
+    void slotTransferStatusUnjoinable(const QString& fileId, datatransfer::Info info);
+
+    void slotSwarmLoaded(uint32_t requestId,
+                         const QString& accountId,
+                         const QString& conversationId,
+                         const VectorSwarmMessage& messages);
+    void slotMessagesFound(uint32_t requestId,
+                           const QString& accountId,
+                           const QString& conversationId,
+                           const VectorMapStringString& messages);
+    void slotMessageReceived(const QString& accountId, const QString& conversationId, const SwarmMessage& message);
+    void slotMessageUpdated(const QString& accountId, const QString& conversationId, const SwarmMessage& message);
+    void slotReactionAdded(const QString& accountId,
+                           const QString& conversationId,
+                           const QString& messageId,
+                           const MapStringString& reaction);
+    void slotReactionRemoved(const QString& accountId,
+                             const QString& conversationId,
+                             const QString& messageId,
+                             const QString& reactionId);
+    void slotConversationProfileUpdated(const QString& accountId,
+                                        const QString& conversationId,
+                                        const MapStringString& profile);
+    void slotConversationRequestReceived(const QString& accountId,
+                                         const QString& conversationId,
+                                         const MapStringString& metadatas);
+    void slotConversationMemberEvent(const QString& accountId,
+                                     const QString& conversationId,
+                                     const QString& memberUri,
+                                     int event);
+    void slotOnConversationError(const QString& accountId, const QString& conversationId, int code, const QString& what);
+    void slotConversationReady(const QString& accountId, const QString& conversationId);
+    void slotConversationRemoved(const QString& accountId, const QString& conversationId);
+    void slotConversationPreferencesUpdated(const QString& accountId,
+                                            const QString& conversationId,
+                                            const MapStringString& preferences);
+
+private:
+    using FilterPredicate = std::function<bool(const conversation::Info& convInfo)>;
+
+    // Private helpers implemented in conversationmodel.cpp
+    void initConversationsImpl();
+    int indexOf(const QString& uid) const;
+    std::reference_wrapper<conversation::Info> getConversation(const FilterPredicate& pred,
+                                                               bool searchResultIncluded = false) const;
+    std::reference_wrapper<conversation::Info> convForUid(const QString& uid, bool searchResultIncluded = false) const;
+    std::reference_wrapper<conversation::Info> convForPeerUri(const QString& uri,
+                                                              bool searchResultIncluded = false) const;
+    std::vector<int> getIndicesForContact(const QString& uri) const;
+    bool filterConversation(const conversation::Info& conv);
+    bool sortConversation(const conversation::Info& convA, const conversation::Info& convB);
+    const VectorString peersForConversationInfo(const conversation::Info& conversation) const;
+    void invalidateModel();
+    void emplaceBackConversation(conversation::Info&& conversation);
+    void eraseConversation(const QString& convId);
+    void eraseConversation(int index);
+    void sendContactRequest(const QString& contactUri);
+    void addConversationWith(const QString& convId, const QString& contactUri, bool isRequest);
+    void addSwarmConversation(const QString& convId);
+    void addOrUpdateCallMessage(const QString& callId,
+                                const QString& from,
+                                bool incoming,
+                                const std::time_t& duration = -1);
+    QString addIncomingMessage(const QString& peerId,
+                               const QString& body,
+                               const uint64_t& timestamp = 0,
+                               const QString& daemonId = "");
+    void updateInteractionStatus(const QString& accountId,
+                                 const QString& conversationId,
+                                 const QString& peerId,
+                                 const QString& messageId,
+                                 int status);
+    void startCallImpl(const QString& uid, bool isAudioOnly = false);
+    int getNumberOfUnreadMessagesForImpl(const QString& uid);
+    void updateTransferProgress(QTimer* timer, int conversationIdx, const QString& interactionId);
+    bool usefulDataFromDataTransfer(const QString& fileId,
+                                    const datatransfer::Info& info,
+                                    QString& interactionId,
+                                    QString& conversationId);
+    void awaitingHost(const QString& fileId, datatransfer::Info info);
+    bool hasOneOneSwarmWith(const contact::Info& participant);
+    void acceptTransferImpl(const QString& convUid, const QString& interactionId);
+    void handleIncomingFile(const QString& convId, const QString& interactionId, int totalSize);
+    void addConversationRequest(const MapStringString& convRequest, bool emitToClient = false);
+    void addContactRequest(const QString& contactUri);
+    bool updateTransferStatus(const QString& fileId,
+                              datatransfer::Info info,
+                              interaction::TransferStatus newStatus,
+                              bool& updated);
+
+    std::unique_ptr<ConversationModelPrivate> d_;
+    DraftProvider draftProvider_;
+};
+} // namespace api
+} // namespace lrc
+Q_DECLARE_METATYPE(lrc::api::ConversationModel*)
