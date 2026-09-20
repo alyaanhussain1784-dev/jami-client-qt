@@ -40,10 +40,8 @@ jobs:
           libcanberra-dev glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev \
           libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
-          clang-format
+          clang-format libswresample-dev
 
-    # NEW STEP: Overwrites all format.py validation calls with a dummy "pass" action
-    # This prevents the broken git hooks from ever running and stopping the build.
     - name: Disable Broken Formatting Checks
       run: |
         echo "Bypassing broken format hooks..."
