@@ -24,12 +24,12 @@ jobs:
       with:
         python-version: '3.10'
 
-    # 3. Install Qt6 framework required by the client interface
+    # 3. Install Qt6 framework (Fixed modules string to prevent XML parse errors)
     - name: Install Qt 6
       uses: jurplel/install-qt-action@v3
       with:
-        version: '6.6.3' # Matches Jami's minimum required version
-        modules: 'qtmultimedia qtsvg qtwebengine qtdeclarative'
+        version: '6.6.3'
+        modules: 'qtmultimedia qtwebengine'
 
     # 4. Install native OS dependencies for compilation
     - name: Install System Dependencies
@@ -45,9 +45,15 @@ jobs:
         chmod +x build.py
         ./build.py --install --qt=$IQT_VERSION_PATH
 
-    # 6. Upload the compiled executable as a download link
-    - name: Upload Binary Artifact
+    # 6. Package the build into a .deb installer using CPack
+    - name: Package as DEB
+      run: |
+        cd build
+        cpack -G DEB
+
+    # 7. Upload the .deb package to GitHub Artifacts
+    - name: Upload Debian Installer
       uses: actions/upload-artifact@v4
       with:
-        name: jami-qt-linux-binary
-        path: build/jami
+        name: jami-qt-ubuntu-installer
+        path: build/*.deb
