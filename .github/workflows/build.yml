@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
     # 1. Checkout the repository along with its core submodules
@@ -31,13 +31,14 @@ jobs:
         version: '6.6.3'
         modules: 'qtmultimedia qtwebengine'
 
-    # 4. Install native OS dependencies for compilation
+    # 4. Install native OS dependencies for compilation (Includes libyaml-cpp-dev)
     - name: Install System Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential cmake automake autoconf \
           autopoint libtool pkg-config libdbus-1-dev libva-dev libvdpau-dev \
-          libasound2-dev libpulse-dev libudev-dev libexpat1-dev nasm yasm swig
+          libasound2-dev libpulse-dev libudev-dev libexpat1-dev nasm yasm swig \
+          libyaml-cpp-dev
 
     # 5. Execute Jami's integrated build script
     - name: Compile Jami Qt & Daemon
