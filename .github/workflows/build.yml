@@ -17,7 +17,6 @@ jobs:
       with:
         submodules: recursive
 
-     Tar and clean spaces if needed
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -32,12 +31,15 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake automake autoconf \
-          autopoint libtool pkg-config libdbus-1-dev libva-dev libvdpau-dev \
-          libasound2-dev libpulse-dev libudev-dev libexpat1-dev nasm yasm swig \
-          libyaml-cpp-dev libavutil-dev libspeexdsp-dev libarchive-dev \
-          libva-dev libvdpau-dev libsecret-1-dev libssl-dev libcanberra-dev \
-          glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev
+        sudo apt-get install -y \
+          build-essential cmake automake autoconf autopoint libtool pkg-config \
+          libdbus-1-dev libva-dev libvdpau-dev libasound2-dev libpulse-dev \
+          libudev-dev libexpat1-dev nasm yasm swig libyaml-cpp-dev \
+          libavutil-dev libavcodec-dev libavformat-dev libswscale-dev libavdevice-dev \
+          libspeex-dev libspeexdsp-dev libarchive-dev libsecret-1-dev libssl-dev \
+          libcanberra-dev glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev \
+          libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
+          libjack-jackd2-dev libqt6svg6-dev qt6-declarative-dev
 
     - name: Rename App to Loamaafaanue
       run: |
