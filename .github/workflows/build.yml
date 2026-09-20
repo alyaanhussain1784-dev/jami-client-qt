@@ -40,7 +40,7 @@ jobs:
           libcanberra-dev glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev \
           libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
-          clang-format libswresample-dev
+          clang-format libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev
 
     - name: Disable Broken Formatting Checks
       run: |
