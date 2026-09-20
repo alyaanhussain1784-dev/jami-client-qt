@@ -40,24 +40,13 @@ jobs:
           libcanberra-dev glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev \
           libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
-          clang-format libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev \
-          cargo rustc
+          clang-format libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev
 
     - name: Disable Broken Formatting Checks
       run: |
-        誠 Testing dummy format routine
         echo "Bypassing broken format hooks..."
         echo -e '#!/usr/bin/env python3\nimport sys\nsys.exit(0)' > ./extras/scripts/format.py
         chmod +x ./extras/scripts/format.py
-
-    # FIXED: Replaced "make prebuilt" with active compiler target "make install" to compile dependencies instead of fetching dead links
-    - name: Pre-build Contrib Modules
-      run: |
-        cd daemon/contrib
-        mkdir native && cd native
-        ../bootstrap
-        make install -j$(nproc)
-        cd ../../..
 
     - name: Initialize Jami Build System
       run: |
