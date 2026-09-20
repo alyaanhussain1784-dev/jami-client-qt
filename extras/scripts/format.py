@@ -23,7 +23,6 @@ from platform import uname
 
 CFVERSION = "9"
 CLANGFORMAT = None
-
 QMLFORMAT = None
 
 
@@ -34,14 +33,11 @@ def command_exists(cmd):
 
 def find_qmlformat(qt_path):
     """Find the path to the qmlformat binary."""
-
-    # Correct the path if it's a Windows WSL path.
     is_windows = os.name == "nt"
     if 'Microsoft' in uname().release:
         qt_path = qt_path.replace('C:', '/mnt/c')
         is_windows = True
 
-    # Check if qmlformat is in a subdirectory called bin.
     qmlformat_path = os.path.join(qt_path, "bin", "qmlformat")
     qmlformat_path += ".exe" if is_windows else ""
     return qmlformat_path if os.path.exists(qmlformat_path) else None
@@ -70,7 +66,6 @@ def qml_format_files(files):
         if os.path.isfile(filename):
             print(f"Formatting: {filename}", end='\r')
             subprocess.call([QMLFORMAT, '--inplace', filename])
-            # This may generate a backup file (ending with ~), so delete it.
             backup_file = filename + "~"
             if os.path.isfile(backup_file):
                 os.remove(backup_file)
@@ -90,16 +85,13 @@ def install_hook(hooks_path, qt_path=None):
     print(f"Installing pre-commit hook in {hooks_path}")
     with open(os.path.join(hooks_path, "pre-commit"),
               "w", encoding="utf-8") as file:
-        file.write(os.path.realpath(sys.argv[0])
-                   + f' --qt={qt_path}' if qt_path else '')
+        # FIXED: Added correct parentheses group mapping to prevent string drop out
+        file.write(os.path.realpath(sys.argv[0]) + (f' --qt={qt_path}' if qt_path else ''))
     os.chmod(os.path.join(hooks_path, "pre-commit"), 0o755)
 
 
 def get_files(file_types, recursive=True, committed_only=False):
-    """
-    Get a list of files in the src directory [and subdirectories].
-    Filters by file types and whether the file is committed.
-    """
+    """Get a list of files in the src directory with filtering options."""
     file_list = []
     committed_files = []
     if committed_only:
@@ -111,30 +103,23 @@ def get_files(file_types, recursive=True, committed_only=False):
             file_path = os.path.join(dirpath, filename)
             if file_types and not any(file_path.endswith(file_type)
                                       for file_type in file_types):
-                continue  # Skip files that don't match any file types.
-            if committed_only:
-                if file_path not in committed_files:
-                    continue  # Skip uncommitted files.
+                continue
+            if committed_only and file_path not in committed_files:
+                continue
             file_list.append(file_path)
         if not recursive:
-            break  # Stop searching if not recursive.
+            break
     return file_list
 
 
 def main():
     """Check for formatter installations, install hooks, and format files."""
-    global CLANGFORMAT  # pylint: disable=global-statement
-    parser = argparse.ArgumentParser(
-        description="Format source filess with a clang-format")
-    parser.add_argument("-a", "--all", action="store_true",
-                        help="format all files instead of only committed ones")
-    parser.add_argument("-i", "--install", metavar="PATH",
-                        help="install a pre-commit hook to run this script")
-    parser.add_argument("-q", "--qt", default=None,
-                        help="The Qt root path")
-    # Add an option to only format a specific type (qml, cpp, or both)
-    parser.add_argument("-t", "--type", default="both",
-                        help="The type of files to format (qml, cpp, or both)")
+    global CLANGFORMAT, QMLFORMAT
+    parser = argparse.ArgumentParser(description="Format source files with a clang-format")
+    parser.add_argument("-a", "--all", action="store_true", help="format all files")
+    parser.add_argument("-i", "--install", metavar="PATH", help="install pre-commit hook")
+    parser.add_argument("-q", "--qt", default=None, help="The Qt root path")
+    parser.add_argument("-t", "--type", default="both", help="Type of files to format")
     args = parser.parse_args()
 
     if args.type in ["cpp", "both"]:
@@ -143,28 +128,26 @@ def main():
         elif command_exists("clang-format"):
             CLANGFORMAT = "clang-format"
 
-    if CLANGFORMAT is not None:
+    if CLANGFORMAT:
         print("Using source formatter: " + CLANGFORMAT)
     else:
-        print("clang-format not found, unable to format source files")
+        print("clang-format not found")
 
     if args.qt is not None and args.type in ["qml", "both"]:
-        global QMLFORMAT  # pylint: disable=global-statement
         QMLFORMAT = find_qmlformat(args.qt)
-        if QMLFORMAT is not None:
+        if QMLFORMAT:
             print("Using qmlformatter: " + QMLFORMAT)
         else:
-            print("qmlformat not found, unable to format QML files")
+            print("qmlformat not found")
 
     if args.install:
-        if CLANGFORMAT is not None or QMLFORMAT is not None:
+        if CLANGFORMAT or QMLFORMAT:
             install_hook(args.install, args.qt)
         else:
             print("No formatters found, skipping hook install")
         sys.exit(0)
 
-    src_files = get_files([".cpp", ".cxx", ".cc", ".h", ".hpp"],
-                          committed_only=not args.all)
+    src_files = get_files([".cpp", ".cxx", ".cc", ".h", ".hpp"], committed_only=not args.all)
     qml_files = get_files([".qml"], committed_only=not args.all)
 
     if not src_files and not qml_files:
