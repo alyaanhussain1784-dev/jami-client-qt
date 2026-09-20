@@ -46,30 +46,24 @@ jobs:
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
           clang-format
 
-    # 5. Inject your custom app name (Excludes utility .py scripts to prevent corruption)
-    - name: Rename App to Loamaafaanue
-      run: |
-        find . -type f \( -name "CMakeLists.txt" -o -name "*.cpp" -o -name "*.h" -o -name "*.ui" \) -exec sed -i 's/Jami/Loamaafaanue/g' {} +
-        find . -type f \( -name "CMakeLists.txt" -o -name "*.cpp" -o -name "*.h" -o -name "*.ui" \) -exec sed -i 's/jami/loamaafaanue/g' {} +
-
-    # 6. Initialize submodules configuration paths using the proper --init flag
+    # 5. Initialize submodules configuration paths cleanly without formatting errors
     - name: Initialize Jami Build System
       run: |
         chmod +x build.py
         ./build.py --init --qt=$IQT_VERSION_PATH
 
-    # 7. Run the full compilation script for Daemon and Client
+    # 6. Run the full compilation script for Daemon and Client
     - name: Compile Qt Client & Backend Daemon
       run: |
         ./build.py --install --qt=$IQT_VERSION_PATH
 
-    # 8. Bundle everything into an installable Debian package
+    # 7. Package everything into an installable Debian package
     - name: Package as DEB
       run: |
         cd build
         cpack -G DEB
 
-    # 9. Deliver your ready-to-use installer link
+    # 8. Deliver your ready-to-use installer link
     - name: Upload Debian Installer
       uses: actions/upload-artifact@v4
       with:
