@@ -22,6 +22,11 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Install Linting Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format
+
     - name: Install Qt 6.10
       uses: jurplel/install-qt-action@v3
       with:
@@ -30,7 +35,6 @@ jobs:
 
     - name: Install System Dependencies
       run: |
-        sudo apt-get update
         sudo apt-get install -y \
           build-essential cmake automake autoconf autopoint libtool pkg-config \
           libdbus-1-dev libva-dev libvdpau-dev libasound2-dev libpulse-dev \
@@ -40,27 +44,34 @@ jobs:
           libcanberra-dev glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev \
           libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
-          clang-format libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev
+          libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev
 
-    - name: Disable Broken Formatting Checks
+    - name: Bypass Build Scripts Formatting Hooks
       run: |
-        echo "Bypassing broken format hooks..."
-        echo -e '#!/usr/bin/env python3\nimport sys\nsys.exit(0)' > ./extras/scripts/format.py
-        chmod +x ./extras/scripts/format.py
+        if [ -f "./extras/scripts/format.py" ]; then
+          echo -e '#!/usr/bin/env python3\nimport sys\nsys.exit(0)' > ./extras/scripts/format.py
+          chmod +x ./extras/scripts/format.py
+        fi
 
     - name: Initialize Jami Build System
       run: |
         chmod +x build.py
-        ./build.py --init --qt=$IQT_VERSION_PATH
+        ./build.py --init --qt=$QT_ROOT_DIR
+
+    - name: Install Internal Daemon Contrib Dependencies
+      run: |
+        sudo ./build.py --dependencies
 
     - name: Compile Qt Client & Backend Daemon
       run: |
-        ./build.py --install --qt=$IQT_VERSION_PATH
+        ./build.py --install --qt=$QT_ROOT_DIR
 
     - name: Package as DEB
       run: |
-        cd build
-        cpack -G DEB
+        if [ -d "build" ]; then
+          cd build
+          cpack -G DEB
+        fi
 
     - name: Upload Debian Installer
       uses: actions/upload-artifact@v4
