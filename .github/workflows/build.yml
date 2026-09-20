@@ -1,4 +1,4 @@
-name: Build Jami Qt Client
+name: Build Custom Jami App (Loamaafaanue)
 
 on:
   push:
@@ -17,6 +17,7 @@ jobs:
       with:
         submodules: recursive
 
+     Tar and clean spaces if needed
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -34,12 +35,19 @@ jobs:
         sudo apt-get install -y build-essential cmake automake autoconf \
           autopoint libtool pkg-config libdbus-1-dev libva-dev libvdpau-dev \
           libasound2-dev libpulse-dev libudev-dev libexpat1-dev nasm yasm swig \
-          libyaml-cpp-dev libavutil-dev libspeexdsp-dev libarchive-dev
+          libyaml-cpp-dev libavutil-dev libspeexdsp-dev libarchive-dev \
+          libva-dev libvdpau-dev libsecret-1-dev libssl-dev libcanberra-dev \
+          glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev
 
-    - name: Compile Jami Qt & Daemon
+    - name: Rename App to Loamaafaanue
+      run: |
+        find . -type f \( -name "CMakeLists.txt" -o -name "*.cpp" -o -name "*.h" -o -name "*.ui" \) -exec sed -i 's/Jami/Loamaafaanue/g' {} +
+        find . -type f \( -name "CMakeLists.txt" -o -name "*.cpp" -o -name "*.h" -o -name "*.ui" \) -exec sed -i 's/jami/loamaafaanue/g' {} +
+
+    - name: Compile Qt & Daemon
       run: |
         chmod +x build.py
-        ./build.py --install --qt=\$IQT_VERSION_PATH
+        ./build.py --install --qt=$IQT_VERSION_PATH
 
     - name: Package as DEB
       run: |
@@ -49,5 +57,5 @@ jobs:
     - name: Upload Debian Installer
       uses: actions/upload-artifact@v4
       with:
-        name: jami-qt-ubuntu-installer
+        name: loamaafaanue-ubuntu-installer
         path: build/*.deb
