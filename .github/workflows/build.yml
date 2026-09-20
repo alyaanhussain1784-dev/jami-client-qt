@@ -1,0 +1,53 @@
+name: Build Jami Qt Client
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows you to run the build manually
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-24.04
+
+    steps:
+    # 1. Checkout the repository along with its core submodules
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    # 2. Set up Python (required by Jami's build system)
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    # 3. Install Qt6 framework required by the client interface
+    - name: Install Qt 6
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.6.3' # Matches Jami's minimum required version
+        modules: 'qtmultimedia qtsvg qtwebengine qtdeclarative'
+
+    # 4. Install native OS dependencies for compilation
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake automake autoconf \
+          autopoint libtool pkg-config libdbus-1-dev libva-dev libvdpau-dev \
+          libasound2-dev libpulse-dev libudev-dev libexpat1-dev nasm yasm swig
+
+    # 5. Execute Jami's integrated build script
+    - name: Compile Jami Qt & Daemon
+      run: |
+        chmod +x build.py
+        ./build.py --install --qt=$IQT_VERSION_PATH
+
+    # 6. Upload the compiled executable as a download link
+    - name: Upload Binary Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: jami-qt-linux-binary
+        path: build/jami
