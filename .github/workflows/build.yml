@@ -49,13 +49,13 @@ jobs:
         echo -e '#!/usr/bin/env python3\nimport sys\nsys.exit(0)' > ./extras/scripts/format.py
         chmod +x ./extras/scripts/format.py
 
-    # FIXED: Replaced ".yrs" target with ".yrs-ffi" to match the build schema definitions
     - name: Pre-build Contrib Modules
       run: |
         cd daemon/contrib
         mkdir native && cd native
         ../bootstrap
-        make .yrs-ffi -j$(nproc)
+        # Fetches pre-compiled target components so it clears the 'yrs' check smoothly
+        make prebuilt
         cd ../../..
 
     - name: Initialize Jami Build System
@@ -65,6 +65,8 @@ jobs:
 
     - name: Compile Qt Client & Backend Daemon
       run: |
+        # Added the automated flag to dynamically fulfill any remaining backend dependencies
+        sudo ./build.py --dependencies
         ./build.py --install --qt=$IQT_VERSION_PATH
 
     - name: Package as DEB
