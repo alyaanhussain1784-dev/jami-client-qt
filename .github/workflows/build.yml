@@ -46,13 +46,13 @@ jobs:
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
           clang-format
 
-    # 5. Inject your custom app name (Loamaafaanue) across files
+    # 5. Inject your custom app name (Excludes utility .py scripts to prevent corruption)
     - name: Rename App to Loamaafaanue
       run: |
         find . -type f \( -name "CMakeLists.txt" -o -name "*.cpp" -o -name "*.h" -o -name "*.ui" \) -exec sed -i 's/Jami/Loamaafaanue/g' {} +
         find . -type f \( -name "CMakeLists.txt" -o -name "*.cpp" -o -name "*.h" -o -name "*.ui" \) -exec sed -i 's/jami/loamaafaanue/g' {} +
 
-    # 6. Initialize submodules configuration paths using Qt environment paths
+    # 6. Initialize submodules configuration paths using the proper --init flag
     - name: Initialize Jami Build System
       run: |
         chmod +x build.py
