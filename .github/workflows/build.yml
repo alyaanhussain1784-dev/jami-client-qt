@@ -5,54 +5,47 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # Allows you to run the build manually
+  workflow_dispatch:
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Checkout the repository along with its core submodules
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    # 2. Set up Python (required by Jami's build system)
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    # 3. Install Qt6 framework (Fixed modules string to prevent XML parse errors)
     - name: Install Qt 6
       uses: jurplel/install-qt-action@v3
       with:
         version: '6.6.3'
         modules: 'qtmultimedia qtwebengine'
 
-    # 4. Install native OS dependencies for compilation (Includes libyaml-cpp-dev)
     - name: Install System Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential cmake automake autoconf \
           autopoint libtool pkg-config libdbus-1-dev libva-dev libvdpau-dev \
           libasound2-dev libpulse-dev libudev-dev libexpat1-dev nasm yasm swig \
-          libyaml-cpp-dev
+          libyaml-cpp-dev libavutil-dev libspeexdsp-dev libarchive-dev
 
-    # 5. Execute Jami's integrated build script
     - name: Compile Jami Qt & Daemon
       run: |
         chmod +x build.py
-        ./build.py --install --qt=$IQT_VERSION_PATH
+        ./build.py --install --qt=\$IQT_VERSION_PATH
 
-    # 6. Package the build into a .deb installer using CPack
     - name: Package as DEB
       run: |
         cd build
         cpack -G DEB
 
-    # 7. Upload the .deb package to GitHub Artifacts
     - name: Upload Debian Installer
       uses: actions/upload-artifact@v4
       with:
