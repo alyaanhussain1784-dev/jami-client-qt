@@ -9,61 +9,199 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      # ------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      # ------------------------------------------------------------
+      # Python
+      # ------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install Qt 6.10
-      uses: jurplel/install-qt-action@v3
-      with:
-        version: '6.10.0'
-        modules: 'qtmultimedia qtwebengine qt5compat'
+      # ------------------------------------------------------------
+      # Qt 6.10
+      # ------------------------------------------------------------
+      - name: Install Qt 6.10
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.0'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'gcc_64'
+          modules: 'qtmultimedia qtwebengine qt5compat qtwebchannel'
 
-    - name: Install System Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential cmake automake autoconf autopoint libtool pkg-config \
-          libdbus-1-dev libva-dev libvdpau-dev libasound2-dev libpulse-dev \
-          libudev-dev libexpat1-dev nasm yasm swig libyaml-cpp-dev \
-          libavutil-dev libavcodec-dev libavformat-dev libswscale-dev libavdevice-dev \
-          libspeex-dev libspeexdsp-dev libarchive-dev libsecret-1-dev libssl-dev \
-          libcanberra-dev glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev \
-          libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
-          libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
-          clang-format libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev
+      # ------------------------------------------------------------
+      # Basic Linux build dependencies
+      # ------------------------------------------------------------
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
 
-    - name: Disable Broken Formatting Checks
-      run: |
-        echo "Bypassing broken format hooks..."
-        echo -e '#!/usr/bin/env python3\nimport sys\nsys.exit(0)' > ./extras/scripts/format.py
-        chmod +x ./extras/scripts/format.py
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            automake \
+            autoconf \
+            autoconf-archive \
+            autopoint \
+            libtool \
+            pkg-config \
+            gettext \
+            doxygen \
+            graphviz \
+            pandoc \
+            nasm \
+            yasm \
+            swig \
+            clang-format \
+            curl \
+            git \
+            ca-certificates \
+            libdbus-1-dev \
+            libdbus-c++-dev \
+            libasound2-dev \
+            libpulse-dev \
+            libudev-dev \
+            libexpat1-dev \
+            libgnutls28-dev \
+            libssl-dev \
+            libspeex-dev \
+            libspeexdsp-dev \
+            libopus-dev \
+            libva-dev \
+            libvdpau-dev \
+            libyaml-cpp-dev \
+            libavcodec-dev \
+            libavdevice-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libswresample-dev \
+            libmsgpack-dev \
+            libpipewire-0.3-dev \
+            libjack-jackd2-dev \
+            libx264-dev \
+            libvpx-dev \
+            libupnp-dev \
+            libnotify-dev \
+            libnm-dev \
+            libsecret-1-dev \
+            libarchive-dev \
+            libgit2-dev \
+            libsecp256k1-dev \
+            libqt6svg6-dev
 
-    - name: Initialize Jami Build System
-      run: |
-        chmod +x build.py
-        ./build.py --init --qt=$IQT_VERSION_PATH
+      # ------------------------------------------------------------
+      # Rust
+      #
+      # Required by Jami's yffi / yrs collaborative editing
+      # dependency.
+      # ------------------------------------------------------------
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf \
+            https://sh.rustup.rs | sh -s -- -y
 
-    - name: Compile Qt Client & Backend Daemon
-      run: |
-        ./build.py --install --qt=$IQT_VERSION_PATH
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-    - name: Package as DEB
-      run: |
-        cd build
-        cpack -G DEB
+          source "$HOME/.cargo/env"
 
-    - name: Upload Debian Installer
-      uses: actions/upload-artifact@v4
-      with:
-        name: jami-ubuntu-installer
-        path: build/*.deb
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+          rustc --version
+          cargo --version
+
+      # ------------------------------------------------------------
+      # Initialize Jami
+      # ------------------------------------------------------------
+      - name: Initialize Jami Build System
+        env:
+          QT_PATH: ${{ env.IQT_VERSION_PATH }}
+        run: |
+          chmod +x build.py
+
+          echo "Qt path: $IQT_VERSION_PATH"
+
+          ./build.py --init --qt="$IQT_VERSION_PATH"
+
+      # ------------------------------------------------------------
+      # Install Jami dependencies
+      #
+      # Let Jami's own build.py install the dependencies it knows
+      # about instead of maintaining a second dependency list.
+      # ------------------------------------------------------------
+      - name: Install Jami Dependencies
+        run: |
+          ./build.py --dependencies -y
+
+      # ------------------------------------------------------------
+      # Build
+      # ------------------------------------------------------------
+      - name: Compile Qt Client and Backend Daemon
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+
+          rustc --version
+          cargo --version
+
+          ./build.py --install --qt="$IQT_VERSION_PATH"
+
+      # ------------------------------------------------------------
+      # Show build output
+      # ------------------------------------------------------------
+      - name: Verify Build
+        run: |
+          echo "===== Build directory ====="
+          ls -lah build || true
+
+          echo "===== Installed files ====="
+          find install -maxdepth 3 -type f 2>/dev/null | head -100 || true
+
+          echo "===== Jami executable ====="
+          find . -type f -name jami -o -name jamid | head -20
+
+      # ------------------------------------------------------------
+      # Package
+      # ------------------------------------------------------------
+      - name: Package as DEB
+        run: |
+          mkdir -p dist
+
+          cd build
+
+          cpack -G DEB
+
+          cp ./*.deb ../dist/ || true
+
+      # ------------------------------------------------------------
+      # Upload DEB
+      # ------------------------------------------------------------
+      - name: Upload Debian Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: jami-ubuntu-24.04
+          path: dist/*.deb
+          if-no-files-found: warn
+
+      # ------------------------------------------------------------
+      # Upload complete install directory too
+      # ------------------------------------------------------------
+      - name: Upload Jami Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: jami-linux-build
+          path: install/
+          if-no-files-found: warn
