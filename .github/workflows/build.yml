@@ -45,7 +45,7 @@ jobs:
           libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
           libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev \
-          libqt6httpserver6 qt6-httpserver-dev
+          libqt6httpserver6 qt6-httpserver-dev libsecp256k1-1
 
     - name: Bypass Build Scripts Formatting Hooks
       run: |
@@ -72,8 +72,9 @@ jobs:
       run: |
         if [ -d "build" ]; then
           cd build
-          # Instruct CMake/CPack to bundle the missing runtime library dependencies explicitly
-          echo "SET(CPACK_DEBIAN_PACKAGE_DEPENDS \"libqt6httpserver6, qt6-httpserver-dev\")" >> CPackConfig.cmake
+          # Dynamically instruct CPack to automatically parse and declare runtime library version hooks
+          echo "SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)" >> CPackConfig.cmake
+          echo "SET(CPACK_DEBIAN_PACKAGE_DEPENDS \"libqt6httpserver6, qt6-httpserver-dev, libsecp256k1-dev, libsecp256k1-1\")" >> CPackConfig.cmake
           cpack -G DEB
         fi
 
