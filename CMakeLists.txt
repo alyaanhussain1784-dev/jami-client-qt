@@ -1521,6 +1521,6 @@ if(NOT APPLE AND NOT WIN32)
   set(CPACK_PACKAGE_NAME "loamaafaanu")
   set(CPACK_DEBIAN_PACKAGE_NAME "loamaafaanu")
   set(CPACK_DEBIAN_PACKAGE_SECTION "net")
-  set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6httpserver6, qt6-httpserver-dev")
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6httpserver6, qt6-httpserver-dev, libsecp256k1-dev, libsecp256k1-1")
 endif()
 
