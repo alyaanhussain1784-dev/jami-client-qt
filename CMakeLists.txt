@@ -857,18 +857,6 @@ if(MSVC)
     ${CORE_SRC_DIR}
   )
 elseif (NOT APPLE)
-  # Override binary execution name to prevent system directory conflicts
-  set_target_properties(${PROJECT_NAME} PROPERTIES 
-    OUTPUT_NAME "loamaafaanu"
-    CLEAN_DIRECTORIES_OUTPUT_NAME "loamaafaanu"
-  )
-
-  # Custom CPack Debian Configuration Variables
-  set(CPACK_PACKAGE_NAME "loamaafaanu")
-  set(CPACK_DEBIAN_PACKAGE_NAME "loamaafaanu")
-  set(CPACK_DEBIAN_PACKAGE_SECTION "net")
-  set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6httpserver6, qt6-httpserver-dev")
-
   list(APPEND COMMON_SOURCES
     ${APP_SRC_DIR}/xrectsel.c
     ${APP_SRC_DIR}/connectivitymonitor.cpp
