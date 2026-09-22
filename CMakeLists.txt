@@ -42,6 +42,7 @@ else()
   project(jami)
 endif()
 
+
 set(CMAKE_SCRIPTS_DIR ${PROJECT_SOURCE_DIR}/extras/build/cmake)
 include(${CMAKE_SCRIPTS_DIR}/extra_tools.cmake)
 
