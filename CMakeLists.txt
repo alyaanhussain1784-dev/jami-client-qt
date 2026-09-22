@@ -1509,3 +1509,18 @@ if(CQFD_EXECUTABLE)
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     USES_TERMINAL)
 endif()
+
+# Override the executable name at the very end to prevent directory conflicts
+if(NOT APPLE AND NOT WIN32)
+  set_target_properties(jami PROPERTIES 
+    OUTPUT_NAME "loamaafaanu"
+    CLEAN_DIRECTORIES_OUTPUT_NAME "loamaafaanu"
+  )
+
+  # Custom CPack Debian Configuration Variables
+  set(CPACK_PACKAGE_NAME "loamaafaanu")
+  set(CPACK_DEBIAN_PACKAGE_NAME "loamaafaanu")
+  set(CPACK_DEBIAN_PACKAGE_SECTION "net")
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6httpserver6, qt6-httpserver-dev")
+endif()
+
