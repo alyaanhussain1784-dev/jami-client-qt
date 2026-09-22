@@ -1,4 +1,4 @@
-Source: libqt-jami
+Source: loamaafaanu
 Section: libs
 Priority: optional
 Maintainer: The Jami project <jami@gnu.org>
@@ -386,8 +386,11 @@ Build-Depends: debhelper (>= 9),
 # xauth,
 # xvfb,
 
-
-Package: libqt-jami
+Package: loamaafaanu
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Custom build of Qt framework used by the Jami Qt client.
+Depends: ${shlibs:Depends}, ${misc:Depends}, libqt6httpserver6, qt6-httpserver-dev
+Conflicts: jami, jami-all, libqt-jami
+Replaces: jami, jami-all, libqt-jami
+Description: Loamaafaanu Secure Peer-to-Peer Communication Client
+ A custom secure communication client featuring the Loamaafaanu interface. Made by the developers of Ilmu-mv.vercel.app
+based on Jami.
