@@ -44,7 +44,8 @@ jobs:
           libcanberra-dev glib-2.0 libglib2.0-dev libnotify-dev libgirepository1.0-dev \
           libgnutls28-dev libopus-dev libvpx-dev libx264-dev libupnp-dev \
           libjack-jackd2-dev libqt6svg6-dev doxygen g++ gettext pandoc libnm-dev \
-          libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev
+          libswresample-dev libgit2-dev libsecp256k1-dev libmsgpack-dev \
+          libqt6httpserver6 qt6-httpserver-dev
 
     - name: Bypass Build Scripts Formatting Hooks
       run: |
@@ -64,12 +65,15 @@ jobs:
 
     - name: Compile Qt Client & Backend Daemon
       run: |
+        export CMAKE_PREFIX_PATH=$QT_ROOT_DIR:$CMAKE_PREFIX_PATH
         ./build.py --install --qt=$QT_ROOT_DIR --no-webengine
 
     - name: Package as DEB
       run: |
         if [ -d "build" ]; then
           cd build
+          # Instruct CMake/CPack to bundle the missing runtime library dependencies explicitly
+          echo "SET(CPACK_DEBIAN_PACKAGE_DEPENDS \"libqt6httpserver6, qt6-httpserver-dev\")" >> CPackConfig.cmake
           cpack -G DEB
         fi
 
